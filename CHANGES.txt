@@ -1,0 +1,5 @@
+# OpenFeature Provider for Android CHANGES
+
+## 0.1.0
+### Features
+* Initial release with basic OpenFeature API implementation
