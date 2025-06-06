@@ -29,6 +29,9 @@ jobs:
       - name: Test with Gradle
         run: ./gradlew test
 
+      - name: Generate JaCoCo Coverage Report
+        run: ./gradlew jacocoTestReport
+
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5.2.0
         env:

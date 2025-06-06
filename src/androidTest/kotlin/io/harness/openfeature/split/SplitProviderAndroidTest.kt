@@ -14,7 +14,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
-import java.io.FileOutputStream
 
 @RunWith(AndroidJUnit4::class)
 class SplitProviderAndroidTest {
@@ -27,20 +26,20 @@ class SplitProviderAndroidTest {
     fun setUp() {
         // Get the real Android test context
         context = ApplicationProvider.getApplicationContext()
-        
+
         // Create a test splits.yaml file in the app's cache directory
         setupSplitsYamlFile()
-        
+
         // Configure Split client for localhost mode with debug logging
         val config = SplitClientConfig.builder()
             .ready(10) // Wait up to 10 milliseconds for SDK readiness
             .logLevel(7) // Set to debug level
             .build()
-        
+
         // Setup the Split provider in localhost mode
         provider = SplitProvider.create(
-            apiKey = "localhost", 
-            context = context, 
+            apiKey = "localhost",
+            context = context,
             config = config
         )
 
@@ -58,9 +57,9 @@ class SplitProviderAndroidTest {
         // Create a splits.yaml file in the app's cache directory
         val assetsDir = File(context.cacheDir, "assets")
         assetsDir.mkdirs()
-        
+
         splitYamlFile = File(assetsDir, "splits.yaml")
-        
+
         // Create a simple splits.yaml content
         val splitsYamlContent = """
             - feature: boolean_flag_on
@@ -88,7 +87,7 @@ class SplitProviderAndroidTest {
               keys: ["test-targeting-key"]
               config: '{"pi": true}'
         """.trimIndent()
-        
+
         // Write the content to the file
         splitYamlFile.writeText(splitsYamlContent)
     }
@@ -101,20 +100,22 @@ class SplitProviderAndroidTest {
         } catch (e: Exception) {
             // Ignore exceptions during shutdown
         }
-        
+
         // Clean up the test file
         splitYamlFile.delete()
     }
 
     @Test
     fun getBooleanEvaluation() {
-        val result: ProviderEvaluation<Boolean> = provider.getBooleanEvaluation("boolean_flag_on", false, null)
+        val result: ProviderEvaluation<Boolean> =
+            provider.getBooleanEvaluation("boolean_flag_on", false, null)
         assertEquals(true, result.value)
     }
 
     @Test
     fun getBooleanEvaluationForOffFlag() {
-        val result: ProviderEvaluation<Boolean> = provider.getBooleanEvaluation("boolean_flag_off", true, null)
+        val result: ProviderEvaluation<Boolean> =
+            provider.getBooleanEvaluation("boolean_flag_off", true, null)
         assertEquals(false, result.value)
     }
 
@@ -122,7 +123,8 @@ class SplitProviderAndroidTest {
     fun getStringEvaluation() {
         // Note: This will fail until the getStringEvaluation method is implemented in SplitProvider
         try {
-            val result: ProviderEvaluation<String> = provider.getStringEvaluation("string_flag", "default", null)
+            val result: ProviderEvaluation<String> =
+                provider.getStringEvaluation("string_flag", "default", null)
             assertEquals("value1", result.value)
         } catch (e: NotImplementedError) {
             // Expected until implemented
@@ -133,7 +135,8 @@ class SplitProviderAndroidTest {
     fun getIntegerEvaluation() {
         // Note: This will fail until the getIntegerEvaluation method is implemented in SplitProvider
         try {
-            val result: ProviderEvaluation<Int> = provider.getIntegerEvaluation("number_flag", 0, null)
+            val result: ProviderEvaluation<Int> =
+                provider.getIntegerEvaluation("number_flag", 0, null)
             assertEquals(42, result.value)
         } catch (e: NotImplementedError) {
             // Expected until implemented
@@ -144,7 +147,8 @@ class SplitProviderAndroidTest {
     fun getDoubleEvaluation() {
         // Note: This will fail until the getDoubleEvaluation method is implemented in SplitProvider
         try {
-            val result: ProviderEvaluation<Double> = provider.getDoubleEvaluation("double_flag", 0.0, null)
+            val result: ProviderEvaluation<Double> =
+                provider.getDoubleEvaluation("double_flag", 0.0, null)
             assertEquals(3.14, result.value)
         } catch (e: NotImplementedError) {
             // Expected until implemented

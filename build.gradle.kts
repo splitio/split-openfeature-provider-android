@@ -104,3 +104,12 @@ spotless {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+// JaCoCo configuration
+jacoco {
+    toolVersion = "0.8.11" // Use the latest version of JaCoCo
+}
+
+tasks.named("check") {
+    dependsOn("jacocoTestReport")
+}
