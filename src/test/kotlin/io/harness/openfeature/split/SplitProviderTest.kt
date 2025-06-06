@@ -1,7 +1,6 @@
 package io.harness.openfeature.split
 
 
-import dev.openfeature.sdk.EvaluationMetadata
 import dev.openfeature.sdk.Reason
 import dev.openfeature.sdk.Value
 import dev.openfeature.sdk.exceptions.ErrorCode
@@ -152,7 +151,7 @@ class SplitProviderTest {
         // Assert
         assertEquals(Reason.ERROR.name, result.reason)
         assertEquals(ErrorCode.TYPE_MISMATCH, result.errorCode)
-        assertEquals("Treatment not_boolean_value is not boolean", result.errorMessage)
+        assertEquals("Type mismatch for treatment: not_boolean_value", result.errorMessage)
         assertEquals(false, result.value)
     }
 
@@ -204,7 +203,7 @@ class SplitProviderTest {
         // Assert
         assertEquals(Reason.ERROR.name, result.reason)
         assertEquals(ErrorCode.TYPE_MISMATCH, result.errorCode)
-        assertEquals("Treatment abc is not a valid integer", result.errorMessage)
+        assertEquals("Type mismatch for treatment: abc", result.errorMessage)
         assertEquals(0, result.value)
     }
 
@@ -222,7 +221,7 @@ class SplitProviderTest {
         // Assert
         assertEquals(Reason.ERROR.name, result.reason)
         assertEquals(ErrorCode.TYPE_MISMATCH, result.errorCode)
-        assertEquals("Treatment 0.1 is not a valid integer", result.errorMessage)
+        assertEquals("Type mismatch for treatment: 0.1", result.errorMessage)
         assertEquals(0, result.value)
     }
 
@@ -272,7 +271,7 @@ class SplitProviderTest {
         // Assert
         assertEquals(Reason.ERROR.name, result.reason)
         assertEquals(ErrorCode.TYPE_MISMATCH, result.errorCode)
-        assertEquals("Treatment abc is not a valid double", result.errorMessage)
+        assertEquals("Type mismatch for treatment: abc", result.errorMessage)
         assertEquals(0.0, result.value)
     }
 
@@ -361,7 +360,7 @@ class SplitProviderTest {
 
         // Assert
         assertEquals(Reason.ERROR.name, result.reason)
-        assertEquals(Value.String("{\"key\":") as Value, result.value)
+        assertEquals(Value.String("") as Value, result.value)
     }
 
     @Test

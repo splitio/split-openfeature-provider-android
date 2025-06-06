@@ -2,7 +2,6 @@ package io.harness.openfeature.split
 
 import android.content.Context
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import dev.openfeature.sdk.EvaluationContext
 import dev.openfeature.sdk.EvaluationMetadata
 import dev.openfeature.sdk.FeatureProvider
@@ -14,7 +13,6 @@ import dev.openfeature.sdk.Value
 import dev.openfeature.sdk.exceptions.ErrorCode
 import io.split.android.client.SplitClient
 import io.split.android.client.SplitClientConfig
-import io.split.android.client.SplitFactory
 import io.split.android.client.SplitFactoryBuilder
 import io.split.android.client.SplitResult
 import io.split.android.client.api.Key
@@ -52,174 +50,93 @@ class SplitProvider(
         }
     }
 
+    // Error handling is now in SplitProviderUtils
+
+    /**
+     * Evaluates a feature flag with the given name and returns a typed result
+     */
     private fun <T> evaluateFlag(flagName: String?, defaultValue: T): ProviderEvaluation<T> {
         val gson = Gson()
-
         val evaluationMetadataBuilder = EvaluationMetadata.builder()
-
         val evaluatedResult: SplitResult = splitClient.getTreatmentWithConfig(flagName, mapOf())
+        val treatment = evaluatedResult.treatment()
 
-        if (evaluatedResult.treatment() == "" || evaluatedResult.treatment() == "control") {
-            return ProviderEvaluation<T>(
+        // Return default value if treatment is empty or control
+        if (treatment.isEmpty() || treatment == "control") {
+            return ProviderEvaluation(
                 value = defaultValue,
-                reason = Reason.DEFAULT.name,
+                reason = Reason.DEFAULT.name
             )
         }
 
         // Handle different types of values based on defaultValue type
-        @Suppress("UNCHECKED_CAST") val result = when (defaultValue) {
-            is Boolean -> {
-                // For boolean flags, "on" typically means true
-                var treatment = defaultValue as Boolean
-                treatment =
-                    if (evaluatedResult.treatment() == "on" || evaluatedResult.treatment() == "true") {
-                        true
-                    } else if (evaluatedResult.treatment() == "off" || evaluatedResult.treatment() == "false") {
-                        false
-                    } else {
-                        return ProviderEvaluation<T>(
-                            value = defaultValue,
-                            reason = Reason.ERROR.name,
-                            errorCode = ErrorCode.TYPE_MISMATCH,
-                            errorMessage = "Treatment ${evaluatedResult.treatment()} is not boolean",
-                        )
-                    }
-                treatment as T
-            }
-
-            is String -> {
-                evaluatedResult.treatment() as T
-            }
-
-            is Double -> {
-                val treatmentToDouble = evaluatedResult.treatment().toDoubleOrNull()
-                if (treatmentToDouble == null) {
-                    return ProviderEvaluation<T>(
-                        value = defaultValue,
-                        reason = Reason.ERROR.name,
-                        errorCode = ErrorCode.TYPE_MISMATCH,
-                        errorMessage = "Treatment ${evaluatedResult.treatment()} is not a valid double",
-                    )
-                }
-                treatmentToDouble as T
-            }
-
-            is Int -> {
-                val treatmentToInt = evaluatedResult.treatment().toIntOrNull()
-                if (treatmentToInt == null) {
-                    return ProviderEvaluation<T>(
-                        value = defaultValue,
-                        reason = Reason.ERROR.name,
-                        errorCode = ErrorCode.TYPE_MISMATCH,
-                        errorMessage = "Treatment ${evaluatedResult.treatment()} is not a valid integer",
-                    )
-                }
-                treatmentToInt as T
-            }
-
-            is Value -> {
-                // Parse the JSON string to appropriate Value type
-                try {
-                    // First try to parse as a JSON object (Structure)
-                    parseJsonToValue<T>(evaluatedResult, gson)
-                } catch (e: Exception) {
-                    return ProviderEvaluation<T>(
-                        value = Value.String(evaluatedResult.treatment()) as T,
-                        reason = Reason.ERROR.name,
-                        errorCode = ErrorCode.PARSE_ERROR,
-                        errorMessage = "Failed to parse treatment to Value: ${e.message}",
-                    )
-                }
-            }
-
-            else -> {
-                // For other types, fall back to default
-                return ProviderEvaluation<T>(
-                    value = defaultValue,
-                    reason = Reason.ERROR.name,
-                    errorCode = ErrorCode.GENERAL,
-                    errorMessage = "Unsupported type ${defaultValue!!::class.simpleName}",
+        @Suppress("UNCHECKED_CAST")
+        val result = try {
+            when (defaultValue) {
+                is Boolean -> handleBooleanTreatment(treatment, defaultValue)
+                is String -> treatment as T
+                is Double -> handleDoubleTreatment(treatment, defaultValue)
+                is Int -> handleIntTreatment(treatment, defaultValue)
+                is Value -> handleValueTreatment(evaluatedResult, gson)
+                else -> return SplitProviderUtils.createErrorEvaluation(
+                    defaultValue,
+                    ErrorCode.GENERAL,
+                    "Unsupported type ${defaultValue!!::class.simpleName}"
                 )
             }
+        } catch (e: TypeCastException) {
+            return SplitProviderUtils.createErrorEvaluation(
+                defaultValue,
+                ErrorCode.TYPE_MISMATCH,
+                "Type mismatch for treatment: $treatment"
+            )
         }
 
-        if (evaluatedResult.config() != null) {
-            evaluationMetadataBuilder.putString("config", evaluatedResult.config())
+        // Add config to metadata if available
+        evaluatedResult.config()?.let {
+            evaluationMetadataBuilder.putString("config", it)
         }
 
-        return ProviderEvaluation<T>(
+        return ProviderEvaluation(
             value = result,
             reason = Reason.TARGETING_MATCH.name,
             metadata = evaluationMetadataBuilder.build()
         )
     }
 
-
+    /**
+     * Handles boolean treatment conversion with special cases for on/off values
+     */
     @Suppress("UNCHECKED_CAST")
-    private fun <T> parseJsonToValue(
-        evaluatedResult: SplitResult, gson: Gson
-    ): T = if (evaluatedResult.treatment().trim().startsWith("{")) {
-        val jsonMap = gson.fromJson<Map<String, Any>>(
-            evaluatedResult.treatment(), object : TypeToken<Map<String, Any>>() {}.type
-        )
-
-        // Convert the parsed map to OpenFeature Value.Structure
-        val valueMap = jsonMap.mapValues { (_, value) ->
-            convertToValue(value)
-        }
-
-        Value.Structure(valueMap) as T
-    }
-    // Try to parse as a JSON array (List)
-    else if (evaluatedResult.treatment().trim().startsWith("[")) {
-        val jsonList = gson.fromJson<List<Any>>(
-            evaluatedResult.treatment(), object : TypeToken<List<Any>>() {}.type
-        )
-
-        // Convert the parsed list to OpenFeature Value.List
-        val valueList = jsonList.map { convertToValue(it) }
-
-        Value.List(valueList) as T
-    }
-    // Try to parse as primitive types
-    else {
-        val treatmentStr = evaluatedResult.treatment()
-
-        // Try to parse as boolean
-        if (treatmentStr.equals("true", ignoreCase = true)) {
-            Value.Boolean(true) as T
-        } else if (treatmentStr.equals("false", ignoreCase = true)) {
-            Value.Boolean(false) as T
-        }
-        // Try to parse as number
-        else if (treatmentStr.toIntOrNull() != null) {
-            Value.Integer(treatmentStr.toInt()) as T
-        } else if (treatmentStr.toDoubleOrNull() != null) {
-            Value.Double(treatmentStr.toDouble()) as T
-        }
-        // Default to string
-        else {
-            Value.String(treatmentStr) as T
-        }
+    private fun <T> handleBooleanTreatment(treatment: String, defaultValue: T): T {
+        return SplitProviderUtils.handleBooleanTreatment(treatment) as T
     }
 
-    // Helper function to convert Any to appropriate Value type
-    private fun convertToValue(value: Any?): Value {
-        return when (value) {
-            null -> Value.Null
-            is String -> Value.String(value)
-            is Boolean -> Value.Boolean(value)
-            is Int -> Value.Integer(value)
-            is Double -> Value.Double(value)
-            is Float -> Value.Double(value.toDouble())
-            is Long -> Value.Integer(value.toInt())
-            is Map<*, *> -> {
-                @Suppress("UNCHECKED_CAST") val map = value as Map<String, Any?>
-                Value.Structure(map.mapValues { (_, v) -> convertToValue(v) })
-            }
+    /**
+     * Handles double treatment conversion
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> handleDoubleTreatment(treatment: String, defaultValue: T): T {
+        return SplitProviderUtils.handleDoubleTreatment(treatment) as T
+    }
 
-            is List<*> -> Value.List(value.map { convertToValue(it) })
-            else -> Value.String(value.toString())
+    /**
+     * Handles integer treatment conversion
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> handleIntTreatment(treatment: String, defaultValue: T): T {
+        return SplitProviderUtils.handleIntTreatment(treatment) as T
+    }
+
+    /**
+     * Handles Value treatment conversion using JSON parsing
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> handleValueTreatment(evaluatedResult: SplitResult, gson: Gson): T {
+        try {
+            return SplitProviderUtils.parseJsonToValue(evaluatedResult, gson) as T
+        } catch (e: Exception) {
+            throw TypeCastException("Failed to parse treatment to Value: ${e.message}")
         }
     }
 
@@ -253,29 +170,54 @@ class SplitProvider(
         return evaluateFlag(key, defaultValue)
     }
 
+    /**
+     * Initializes the Split client with the initial evaluation context
+     * @throws IllegalArgumentException if the targeting key is missing
+     * @throws RuntimeException if initialization fails
+     */
     override suspend fun initialize(initialContext: EvaluationContext?) {
-        // Get targeting key from context or use a default one if not available
-        checkNotNull(initialContext?.getTargetingKey())
+        // Validate context has a targeting key
+        val targetingKey = initialContext?.getTargetingKey()
+            ?: throw IllegalArgumentException("Targeting key is required in the evaluation context")
 
-        val targetingKey = initialContext.getTargetingKey()
+        initializeSplitClient(targetingKey)
+    }
+
+    /**
+     * Helper method to initialize the Split client with a targeting key
+     * @throws RuntimeException if initialization fails
+     */
+    private fun initializeSplitClient(targetingKey: String) {
         val key = Key(targetingKey)
 
         try {
-            // Create factory
-            val splitFactory: SplitFactory = SplitFactoryBuilder.build(apiKey, key, config, context)
-
-            // Initialize the split client
+            // Create factory and initialize client
+            val splitFactory = SplitFactoryBuilder.build(apiKey, key, config, context)
             splitClient = splitFactory.client()
-
         } catch (e: Exception) {
             throw RuntimeException("Failed to initialize Split client", e)
         }
     }
 
+    /**
+     * Reinitializes the Split client when the evaluation context changes
+     */
     override suspend fun onContextSet(
         oldContext: EvaluationContext?, newContext: EvaluationContext
     ) {
-        // Re-init the splitClient?
+        val newTargetingKey = newContext.getTargetingKey()
+
+        // Check if targeting key has changed
+        if (oldContext?.getTargetingKey() != newTargetingKey) {
+            // Clean up old client
+            if (::splitClient.isInitialized) {
+                splitClient.flush()
+                splitClient.destroy()
+            }
+
+            // Initialize with new context
+            initializeSplitClient(newTargetingKey)
+        }
     }
 
     override fun shutdown() {
