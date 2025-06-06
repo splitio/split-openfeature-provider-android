@@ -4,6 +4,7 @@ plugins {
     id("com.android.library") version "8.1.4"
     id("org.jetbrains.kotlin.android") version "2.1.21"
     id("com.diffplug.spotless") version "7.0.4"
+    jacoco
 }
 
 // Load version properties
@@ -103,30 +104,3 @@ spotless {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
-
-//afterEvaluate {
-//    publishing {
-//        publications {
-//            create<MavenPublication>("release") {
-//                from(components["release"])
-//
-//                groupId = "io.harness"
-//                artifactId = "split-openfeature-provider-android"
-//                version = versionName
-//
-//                pom {
-//                    name.set("Split OpenFeature Provider for Android")
-//                    description.set("An OpenFeature provider implementation for Split feature flags on Android")
-//                    url.set("https://github.com/harness/split-openfeature-provider-android")
-//
-//                    licenses {
-//                        license {
-//                            name.set("The Apache License, Version 2.0")
-//                            url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}
