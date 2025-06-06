@@ -372,15 +372,13 @@ class SplitProviderTest {
         every { mockResult.config() } returns "abc"
         every { splitClient.getTreatmentWithConfig(any(), any()) } returns mockResult
 
-
         // Act
         val result = provider.getBooleanEvaluation("object_flag", false, null)
 
         // Assert
         assertEquals(Reason.TARGETING_MATCH.name, result.reason)
         assertEquals(true, result.value)
-        val expectedMetadata = EvaluationMetadata.builder().putString("k1", "string_value").build()
-        assert(expectedMetadata == result.metadata)
+        assertEquals("abc", result.metadata.getString("config"))
     }
 
 
