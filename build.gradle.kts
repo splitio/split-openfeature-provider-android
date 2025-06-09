@@ -101,13 +101,51 @@ spotless {
     }
 }
 
-tasks.withType<Test> {
-    useJUnitPlatform()
-}
-
 // JaCoCo configuration
 jacoco {
     toolVersion = "0.8.11" // Use the latest version of JaCoCo
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
+    finalizedBy(tasks.named("jacocoTestReport"))
+    configure<JacocoTaskExtension> {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+    }
+}
+
+tasks.register<JacocoReport>("jacocoTestReport") {
+    group = "Reporting"
+    description = "Generate Jacoco coverage reports after running tests."
+
+    dependsOn("testDebugUnitTest")
+
+    reports {
+        xml.required.set(true) // Required for SonarQube
+        html.required.set(true)
+        csv.required.set(false)
+    }
+
+    val debugTree = fileTree("${project.buildDir}/tmp/kotlin-classes/debug") {
+        exclude(
+            // Exclude common test-related files
+            "**/R.class",
+            "**/R$*.class",
+            "**/BuildConfig.*",
+            "**/Manifest*.*",
+            "**/*Test*.*",
+            "android/**/*.*"
+        )
+    }
+
+    val mainSrc = "${project.projectDir}/src/main/kotlin"
+
+    sourceDirectories.setFrom(files(mainSrc))
+    classDirectories.setFrom(files(debugTree))
+    executionData.setFrom(fileTree(project.buildDir) {
+        include("jacoco/testDebugUnitTest.exec")
+    })
 }
 
 tasks.named("check") {
