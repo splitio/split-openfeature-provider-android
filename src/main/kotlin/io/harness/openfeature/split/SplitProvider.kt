@@ -9,6 +9,7 @@ import dev.openfeature.sdk.Hook
 import dev.openfeature.sdk.ProviderEvaluation
 import dev.openfeature.sdk.ProviderMetadata
 import dev.openfeature.sdk.Reason
+import dev.openfeature.sdk.TrackingEventDetails
 import dev.openfeature.sdk.Value
 import dev.openfeature.sdk.exceptions.ErrorCode
 import io.split.android.client.SplitClient
@@ -168,6 +169,87 @@ class SplitProvider(
         key: String, defaultValue: String, context: EvaluationContext?
     ): ProviderEvaluation<String> {
         return evaluateFlag(key, defaultValue)
+    }
+
+    /**
+     * See [Harness docs](http://developer.harness.io/docs/feature-management-experimentation/sdks-and-infrastructure/client-side-sdks/android-sdk#track)
+     */
+    override fun track(
+        trackingEventName: String, context: EvaluationContext?, details: TrackingEventDetails?
+    ) {
+        val trafficType = context?.getValue("traffic_type")
+        val value = details?.value
+        val properties = details?.structure?.asMap()
+
+        // Handle tracking with appropriate parameters based on what's available
+        if (trafficType != null) {
+            // With traffic type
+            when {
+                value != null && properties != null -> {
+                    try {
+                        splitClient.track(
+                            trafficType.toString(),
+                            trackingEventName,
+                            value as Double,
+                            properties
+                        )
+                    } catch (e: ClassCastException) {
+                        // Fall back to tracking without value if it's not a number
+                        splitClient.track(trafficType.toString(), trackingEventName, properties)
+                    }
+                }
+
+                value != null -> {
+                    try {
+                        splitClient.track(
+                            trafficType.toString(),
+                            trackingEventName,
+                            value as Double
+                        )
+                    } catch (e: ClassCastException) {
+                        // Fall back to basic tracking if value is not a number
+                        splitClient.track(trafficType.toString(), trackingEventName)
+                    }
+                }
+
+                properties != null -> {
+                    splitClient.track(trafficType.toString(), trackingEventName, properties)
+                }
+
+                else -> {
+                    splitClient.track(trafficType.toString(), trackingEventName)
+                }
+            }
+        } else {
+            // Without traffic type
+            when {
+                value != null && properties != null -> {
+                    try {
+                        splitClient.track(trackingEventName, value as Double, properties)
+                    } catch (e: ClassCastException) {
+                        // Fall back to tracking without value if it's not a number
+                        splitClient.track(trackingEventName, properties)
+                    }
+                }
+
+                value != null -> {
+                    try {
+                        splitClient.track(trackingEventName, value as Double)
+                    } catch (e: ClassCastException) {
+                        // Fall back to basic tracking if value is not a number
+                        splitClient.track(trackingEventName)
+                    }
+                }
+
+                properties != null -> {
+                    splitClient.track(trackingEventName, properties)
+                }
+
+                else -> {
+                    splitClient.track(trackingEventName)
+                }
+            }
+        }
     }
 
     /**

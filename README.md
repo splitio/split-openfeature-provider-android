@@ -99,4 +99,3 @@ For a comprehensive list of open source projects visit our [Github page](https:/
 **Learn more about Harness:**
 
 Visit [harness.io](https://www.harness.io) for an overview of Harness, or visit our documentation at [developer.harness.io/docs](https://developer.harness.io/docs) for more detailed information.
-
