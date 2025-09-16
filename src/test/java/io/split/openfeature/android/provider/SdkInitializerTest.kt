@@ -1,5 +1,7 @@
 package io.split.openfeature.android.provider
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -7,22 +9,20 @@ import io.split.android.client.SplitFactory
 import io.split.android.client.SplitFactoryBuilder
 import io.split.android.client.api.Key
 import io.split.android.client.events.SplitEvent
-import android.content.Context
-import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.advanceTimeBy
-import kotlin.coroutines.cancellation.CancellationException
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlin.coroutines.cancellation.CancellationException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -151,5 +151,4 @@ class SdkInitializerTest : BaseMockkTest() {
             runCurrent()
             deferred.await()
         }
-
 }
