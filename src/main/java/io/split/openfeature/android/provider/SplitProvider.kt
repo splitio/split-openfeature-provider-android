@@ -1,5 +1,6 @@
 package io.split.openfeature.android.provider
 
+import android.content.Context
 import dev.openfeature.kotlin.sdk.EvaluationContext
 import dev.openfeature.kotlin.sdk.FeatureProvider
 import dev.openfeature.kotlin.sdk.Hook
@@ -7,18 +8,23 @@ import dev.openfeature.kotlin.sdk.ProviderEvaluation
 import dev.openfeature.kotlin.sdk.ProviderMetadata
 import dev.openfeature.kotlin.sdk.Value
 import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 
 class SplitProvider(
     override val hooks: List<Hook<*>> = emptyList(),
     override val metadata: ProviderMetadata = object : ProviderMetadata {
         override val name = NAME
-    }
+    },
+    private val config: Config,
 ) : FeatureProvider {
 
     private companion object {
         const val NAME = "Split"
     }
+
+    private val state: AtomicReference<State> =
+        AtomicReference(State(initialized = false, defaultContext = null))
 
     @Throws(OpenFeatureError::class, CancellationException::class)
     override suspend fun initialize(initialContext: EvaluationContext?) {
@@ -76,4 +82,19 @@ class SplitProvider(
         TODO("Not yet implemented")
     }
 
+    /**
+     * Configuration holder for the provider.
+     */
+    data class Config(
+        val applicationContext: Context,
+        val apiKey: String,
+    )
+
+    /**
+     * Internal state holder
+     */
+    private data class State(
+        val initialized: Boolean,
+        val defaultContext: EvaluationContext?
+    )
 }

@@ -39,5 +39,7 @@ dependencies {
     implementation(libs.openfeature.sdk)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.junit)
 }
