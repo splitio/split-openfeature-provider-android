@@ -20,13 +20,12 @@ class SplitProviderTest {
 
     @Test
     fun `SplitProvider implements FeatureProvider`() {
-        assertTrue(SplitProvider(config = testConfig()) is FeatureProvider)
+        assertTrue(getProvider() is FeatureProvider)
     }
 
     @Test
     fun `initialize needs a Config`() {
-        val provider = SplitProvider(config = testConfig())
-        assertNotNull(provider)
+        assertNotNull(getProvider())
     }
 
     private fun getProvider(): SplitProvider = SplitProvider(config = testConfig())
