@@ -67,13 +67,8 @@ internal class SplitSdkInitializer(
 
         client.on(SplitEvent.SDK_READY, object : SplitEventTask() {
             override fun onPostExecution(client: SplitClient?) {
-                if (!ready.isCompleted) ready.complete(Unit)
-            }
-        })
-        client.on(SplitEvent.SDK_READY_TIMED_OUT, object : SplitEventTask() {
-            override fun onPostExecution(client: SplitClient?) {
                 if (!ready.isCompleted) {
-                    ready.completeExceptionally(IllegalStateException("Split SDK not ready"))
+                    ready.complete(Unit)
                 }
             }
         })
