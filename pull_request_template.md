@@ -1,4 +1,4 @@
-# Android SDK
+# Split Android OpenFeature Provider
 
 ## What did you accomplish?
 
