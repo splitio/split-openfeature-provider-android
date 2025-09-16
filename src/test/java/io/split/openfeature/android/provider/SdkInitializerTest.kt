@@ -3,15 +3,12 @@ package io.split.openfeature.android.provider
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
-import io.mockk.unmockkAll
-import io.split.android.client.SplitClient
 import io.split.android.client.SplitFactory
 import io.split.android.client.SplitFactoryBuilder
 import io.split.android.client.api.Key
 import io.split.android.client.events.SplitEvent
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import io.split.android.client.events.SplitEventTask
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
@@ -22,7 +19,6 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlin.coroutines.cancellation.CancellationException
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
-import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -31,7 +27,7 @@ import org.robolectric.annotation.Config
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
-class SdkInitializerTest {
+class SdkInitializerTest : BaseMockkTest() {
 
     private val testDispatcher = StandardTestDispatcher()
     private val initializer = SplitSdkInitializer(testDispatcher)
@@ -39,7 +35,7 @@ class SdkInitializerTest {
     @Test
     fun `getReadyClient completes on SDK_READY`() = runTest(testDispatcher) {
         val factory = mockk<SplitFactory>()
-        val client = HelperClient()
+        val client = TestHelperClient()
         every { factory.client(any() as Key) } returns client
 
         val deferred = async { initializer.getReadyClient(factory, "key", timeoutMs = 5_000) }
@@ -57,7 +53,7 @@ class SdkInitializerTest {
     fun `getReadyClient times out when READY not received`() =
         runTest(testDispatcher) {
             val factory = mockk<SplitFactory>()
-            val client = HelperClient()
+            val client = TestHelperClient()
             every { factory.client(any() as Key) } returns client
 
             val deferred = async { initializer.getReadyClient(factory, "key", timeoutMs = 5_000) }
@@ -76,7 +72,7 @@ class SdkInitializerTest {
         val factory = mockk<SplitFactory>()
         every { SplitFactoryBuilder.build(any(), any(), any(), any()) } returns factory
 
-        val client = HelperClient()
+        val client = TestHelperClient()
         every { factory.client(any() as Key) } returns client
 
         val appContext: Context = ApplicationProvider.getApplicationContext()
@@ -103,7 +99,7 @@ class SdkInitializerTest {
             val factory = mockk<SplitFactory>()
             every { SplitFactoryBuilder.build(any(), any(), any(), any()) } returns factory
 
-            val client = HelperClient()
+            val client = TestHelperClient()
             every { factory.client(any() as Key) } returns client
 
             val appContext: Context = ApplicationProvider.getApplicationContext()
@@ -134,7 +130,7 @@ class SdkInitializerTest {
             val factory = mockk<SplitFactory>()
             every { SplitFactoryBuilder.build(any(), any(), any(), any()) } returns factory
 
-            val client = HelperClient()
+            val client = TestHelperClient()
             every { factory.client(any() as Key) } returns client
 
             val appContext: Context = ApplicationProvider.getApplicationContext()
@@ -155,26 +151,5 @@ class SdkInitializerTest {
             runCurrent()
             deferred.await()
         }
-
-    @After
-    fun tearDown() {
-        unmockkAll()
-    }
-
-    private class HelperClient : SplitClient by mockk(relaxed = true) {
-        private val listeners = mutableMapOf<SplitEvent, MutableList<(SplitClient?) -> Unit>>()
-
-        override fun on(event: SplitEvent?, task: SplitEventTask?) {
-            if (event != null && task != null) {
-                listeners.getOrPut(event) { mutableListOf() }.add { c -> task.onPostExecution(c) }
-            }
-        }
-
-        fun fire(event: SplitEvent) {
-            listeners[event]?.forEach { it(this) }
-        }
-
-        fun subscribed(event: SplitEvent): Boolean = listeners.containsKey(event)
-    }
 
 }
