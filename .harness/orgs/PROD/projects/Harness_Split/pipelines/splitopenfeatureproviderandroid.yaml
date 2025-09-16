@@ -30,9 +30,9 @@ pipeline:
           execution:
             steps:
               - step:
-                  type: Run
-                  name: Setup Java 17
-                  identifier: Setup_Java_17
+                  type: Test
+                  name: Setup Java and Run tests
+                  identifier: Setup_Java_and_Run_tests
                   spec:
                     shell: Sh
                     command: |
@@ -40,18 +40,13 @@ pipeline:
                       apt-get update
                       apt-get install -y openjdk-17-jdk
 
-                      # Set JAVA_HOME
+                      # Set JAVA_HOME for this session
                       export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-                      echo "export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> ~/.bashrc
-                      echo "export PATH=\$JAVA_HOME/bin:\$PATH" >> ~/.bashrc
+                      export PATH=$JAVA_HOME/bin:$PATH
 
                       # Verify Java version
                       java -version
-              - step:
-                  type: Test
-                  name: Run tests
-                  identifier: Run_tests
-                  spec:
-                    shell: Sh
-                    command: ./gradlew test
+
+                      # Run tests
+                      ./gradlew test
                     intelligenceMode: true
