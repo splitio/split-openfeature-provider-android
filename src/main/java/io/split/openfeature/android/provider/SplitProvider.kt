@@ -21,10 +21,10 @@ class SplitProvider internal constructor(
     private val config: Config,
     private val state: AtomicReference<SplitProviderState> = AtomicReference(SplitProviderState()),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val initializer: SplitProviderInitializer = SplitProviderInitializer(
+    private val initializer: Initializer = Initializer(
         stateRef = state,
         config = config,
-        sdkInitializer = SplitSdkInitializer(dispatcher),
+        sdkManager = SplitSdkManager(dispatcher),
         defaultReadyTimeoutMs = DEFAULT_READY_TIMEOUT_MS
     ),
 ) : FeatureProvider {

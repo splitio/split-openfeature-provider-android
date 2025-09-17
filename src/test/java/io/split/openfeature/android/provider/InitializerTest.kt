@@ -27,7 +27,7 @@ import kotlin.coroutines.cancellation.CancellationException
 @OptIn(ExperimentalCoroutinesApi::class)
 @Config(manifest = Config.NONE)
 @RunWith(RobolectricTestRunner::class)
-class SplitProviderInitializerTest : BaseMockkTest() {
+class InitializerTest : BaseMockkTest() {
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -49,11 +49,11 @@ class SplitProviderInitializerTest : BaseMockkTest() {
     fun `initialize completes successfully when SDK_READY fires`() = runTest(testDispatcher) {
         val factory = mockk<SplitFactory>()
         val client = mockk<SplitClient>()
-        val sdkInitializer = mockk<SdkInitializer>()
-        coEvery { sdkInitializer.initialize(any(), any(), any(), any()) } returns (factory to client)
+        val sdkManager = mockk<SdkManager>()
+        coEvery { sdkManager.initialize(any(), any(), any(), any()) } returns (factory to client)
 
         val stateRef = AtomicReference(SplitProviderState())
-        val initializer = initializer(stateRef = stateRef, sdkInitializer = sdkInitializer)
+        val initializer = initializer(stateRef = stateRef, sdkManager = sdkManager)
         val ctx = ImmutableContext(targetingKey = "user-1")
 
         val job = async { initializer.initialize(ctx) }
@@ -65,31 +65,31 @@ class SplitProviderInitializerTest : BaseMockkTest() {
     fun `initialize is idempotent`() = runTest(testDispatcher) {
         val factory = mockk<SplitFactory>()
         val client = mockk<SplitClient>()
-        val sdkInitializer = mockk<SdkInitializer>()
-        coEvery { sdkInitializer.initialize(any(), any(), any(), any()) } returns (factory to client)
+        val sdkManager = mockk<SdkManager>()
+        coEvery { sdkManager.initialize(any(), any(), any(), any()) } returns (factory to client)
 
         val stateRef = AtomicReference(SplitProviderState())
-        val initializer = initializer(stateRef = stateRef, sdkInitializer = sdkInitializer)
+        val initializer = initializer(stateRef = stateRef, sdkManager = sdkManager)
         val ctx1 = ImmutableContext(targetingKey = "user-1")
         val ctx2 = ImmutableContext(targetingKey = "user-2")
 
         initializer.initialize(ctx1)
         initializer.initialize(ctx2)
 
-        coVerify(exactly = 1) { sdkInitializer.initialize(any(), any(), any(), any()) }
+        coVerify(exactly = 1) { sdkManager.initialize(any(), any(), any(), any()) }
     }
 
     @Test(expected = CancellationException::class)
     fun `initialize propagates cancellation`() = runTest(testDispatcher) {
         val factory = mockk<SplitFactory>()
         val client = mockk<SplitClient>()
-        val sdkInitializer = mockk<SdkInitializer>()
-        coEvery { sdkInitializer.initialize(any(), any(), any(), any()) } coAnswers {
+        val sdkManager = mockk<SdkManager>()
+        coEvery { sdkManager.initialize(any(), any(), any(), any()) } coAnswers {
             delay(10_000)
             factory to client
         }
 
-        val initializer = initializer(sdkInitializer = sdkInitializer)
+        val initializer = initializer(sdkManager = sdkManager)
         val ctx = ImmutableContext(targetingKey = "user-1")
 
         val job = async { initializer.initialize(ctx) }
@@ -100,36 +100,36 @@ class SplitProviderInitializerTest : BaseMockkTest() {
 
     @Test(expected = ProviderNotReadyError::class)
     fun `initialize maps IllegalStateException to ProviderNotReadyError`() = runTest(testDispatcher) {
-        val sdkInitializer = mockk<SdkInitializer>()
-        coEvery { sdkInitializer.initialize(any(), any(), any(), any()) } throws IllegalStateException("already built")
+        val sdkManager = mockk<SdkManager>()
+        coEvery { sdkManager.initialize(any(), any(), any(), any()) } throws IllegalStateException("already built")
 
-        val initializer = initializer(sdkInitializer = sdkInitializer)
+        val initializer = initializer(sdkManager = sdkManager)
         val ctx = ImmutableContext(targetingKey = "user-1")
         initializer.initialize(ctx)
     }
 
     @Test
     fun `onContextSet does not do anything if not initialized`() = runTest(testDispatcher) {
-        val sdkInitializer = mockk<SdkInitializer>()
-        val initializer = initializer(sdkInitializer = sdkInitializer)
+        val sdkManager = mockk<SdkManager>()
+        val initializer = initializer(sdkManager = sdkManager)
         initializer.onContextSet(null, ImmutableContext(targetingKey = "user-1"))
-        coVerify(exactly = 0) { sdkInitializer.initialize(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { sdkManager.initialize(any(), any(), any(), any()) }
     }
 
     @Test
     fun `onContextSet does not do anything if new context is equal to old context`() = runTest(testDispatcher) {
-        val sdkInitializer = mockk<SdkInitializer>()
+        val sdkManager = mockk<SdkManager>()
         val factory = mockk<SplitFactory>()
         val client = mockk<SplitClient>()
-        coEvery { sdkInitializer.initialize(any(), any(), any(), any()) } returns (factory to client)
+        coEvery { sdkManager.initialize(any(), any(), any(), any()) } returns (factory to client)
 
         val stateRef = AtomicReference(SplitProviderState())
-        val initializer = initializer(stateRef = stateRef, sdkInitializer = sdkInitializer)
+        val initializer = initializer(stateRef = stateRef, sdkManager = sdkManager)
         val ctx = ImmutableContext(targetingKey = "user-1")
         initializer.initialize(ctx)
         initializer.onContextSet(ctx, ctx)
-        coVerify(exactly = 1) { sdkInitializer.initialize(any(), any(), any(), any()) }
-        coVerify(exactly = 0) { sdkInitializer.getReadyClient(any(), any(), any()) }
+        coVerify(exactly = 1) { sdkManager.initialize(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { sdkManager.getReadyClient(any(), any(), any()) }
     }
 
     @Test
@@ -137,67 +137,67 @@ class SplitProviderInitializerTest : BaseMockkTest() {
         val factory = mockk<SplitFactory>()
         val client = mockk<SplitClient>()
         val client2 = mockk<SplitClient>()
-        val sdkInitializer = mockk<SdkInitializer>()
-        coEvery { sdkInitializer.initialize(any(), any(), "user-1", any()) } returns (factory to client)
-        coEvery { sdkInitializer.getReadyClient(factory, "user-2", any()) } returns client2
+        val sdkManager = mockk<SdkManager>()
+        coEvery { sdkManager.initialize(any(), any(), "user-1", any()) } returns (factory to client)
+        coEvery { sdkManager.getReadyClient(factory, "user-2", any()) } returns client2
 
         val stateRef = AtomicReference(SplitProviderState())
-        val initializer = initializer(stateRef = stateRef, sdkInitializer = sdkInitializer)
+        val initializer = initializer(stateRef = stateRef, sdkManager = sdkManager)
         val ctx = ImmutableContext(targetingKey = "user-1")
         initializer.initialize(ctx)
         initializer.onContextSet(ctx, ImmutableContext(targetingKey = "user-2"))
-        coVerify(exactly = 1) { sdkInitializer.initialize(any(), any(), any(), any()) }
-        coVerify(exactly = 1) { sdkInitializer.getReadyClient(factory, "user-2", any()) }
+        coVerify(exactly = 1) { sdkManager.initialize(any(), any(), any(), any()) }
+        coVerify(exactly = 1) { sdkManager.getReadyClient(factory, "user-2", any()) }
     }
 
     @Test
     fun `onContextSet does not recreate client when targeting key is unchanged`() = runTest(testDispatcher) {
         val factory = mockk<SplitFactory>()
         val client = mockk<SplitClient>()
-        val sdkInitializer = mockk<SdkInitializer>()
-        coEvery { sdkInitializer.initialize(any(), any(), "user-1", any()) } returns (factory to client)
+        val sdkManager = mockk<SdkManager>()
+        coEvery { sdkManager.initialize(any(), any(), "user-1", any()) } returns (factory to client)
 
         val stateRef = AtomicReference(SplitProviderState())
-        val initializer = initializer(stateRef = stateRef, sdkInitializer = sdkInitializer)
+        val initializer = initializer(stateRef = stateRef, sdkManager = sdkManager)
         val oldCtx = ImmutableContext(targetingKey = "user-1")
         initializer.initialize(oldCtx)
 
         val newCtxSameKey = ImmutableContext(targetingKey = "user-1")
         initializer.onContextSet(oldCtx, newCtxSameKey)
 
-        coVerify(exactly = 0) { sdkInitializer.getReadyClient(any(), any(), any()) }
-        coVerify(exactly = 1) { sdkInitializer.initialize(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { sdkManager.getReadyClient(any(), any(), any()) }
+        coVerify(exactly = 1) { sdkManager.initialize(any(), any(), any(), any()) }
     }
 
     @Test
     fun `onContextSet updates evaluationContext when new context is missing targeting key`() = runTest(testDispatcher) {
         val factory = mockk<SplitFactory>()
         val client = mockk<SplitClient>()
-        val sdkInitializer = mockk<SdkInitializer>()
-        coEvery { sdkInitializer.initialize(any(), any(), "user-1", any()) } returns (factory to client)
+        val sdkManager = mockk<SdkManager>()
+        coEvery { sdkManager.initialize(any(), any(), "user-1", any()) } returns (factory to client)
 
         val stateRef = AtomicReference(SplitProviderState())
-        val initializer = initializer(stateRef = stateRef, sdkInitializer = sdkInitializer)
+        val initializer = initializer(stateRef = stateRef, sdkManager = sdkManager)
         val oldCtx = ImmutableContext(targetingKey = "user-1")
         initializer.initialize(oldCtx)
 
         val newCtxMissingKey: EvaluationContext = ImmutableContext() // missing targeting key
         initializer.onContextSet(oldCtx, newCtxMissingKey)
 
-        coVerify(exactly = 0) { sdkInitializer.getReadyClient(any(), any(), any()) }
-        coVerify(exactly = 1) { sdkInitializer.initialize(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { sdkManager.getReadyClient(any(), any(), any()) }
+        coVerify(exactly = 1) { sdkManager.initialize(any(), any(), any(), any()) }
     }
 
     @Test(expected = ProviderNotReadyError::class)
     fun `onContextSet maps IllegalStateException from getReadyClient to ProviderNotReadyError`() = runTest(testDispatcher) {
         val factory = mockk<SplitFactory>()
         val client = mockk<SplitClient>()
-        val sdkInitializer = mockk<SdkInitializer>()
-        coEvery { sdkInitializer.initialize(any(), any(), "user-1", any()) } returns (factory to client)
-        coEvery { sdkInitializer.getReadyClient(factory, "user-2", any()) } throws IllegalStateException("already built")
+        val sdkManager = mockk<SdkManager>()
+        coEvery { sdkManager.initialize(any(), any(), "user-1", any()) } returns (factory to client)
+        coEvery { sdkManager.getReadyClient(factory, "user-2", any()) } throws IllegalStateException("already built")
 
         val stateRef = AtomicReference(SplitProviderState())
-        val initializer = initializer(stateRef = stateRef, sdkInitializer = sdkInitializer)
+        val initializer = initializer(stateRef = stateRef, sdkManager = sdkManager)
         val oldCtx = ImmutableContext(targetingKey = "user-1")
         initializer.initialize(oldCtx)
 
@@ -209,12 +209,12 @@ class SplitProviderInitializerTest : BaseMockkTest() {
     fun `onContextSet maps unexpected exceptions from getReadyClient to ProviderFatalError`() = runTest(testDispatcher) {
         val factory = mockk<SplitFactory>()
         val client = mockk<SplitClient>()
-        val sdkInitializer = mockk<SdkInitializer>()
-        coEvery { sdkInitializer.initialize(any(), any(), "user-1", any()) } returns (factory to client)
-        coEvery { sdkInitializer.getReadyClient(factory, "user-2", any()) } throws RuntimeException("boom")
+        val sdkManager = mockk<SdkManager>()
+        coEvery { sdkManager.initialize(any(), any(), "user-1", any()) } returns (factory to client)
+        coEvery { sdkManager.getReadyClient(factory, "user-2", any()) } throws RuntimeException("boom")
 
         val stateRef = AtomicReference(SplitProviderState())
-        val initializer = initializer(stateRef = stateRef, sdkInitializer = sdkInitializer)
+        val initializer = initializer(stateRef = stateRef, sdkManager = sdkManager)
         val oldCtx = ImmutableContext(targetingKey = "user-1")
         initializer.initialize(oldCtx)
 
@@ -226,13 +226,13 @@ class SplitProviderInitializerTest : BaseMockkTest() {
         stateRef: AtomicReference<SplitProviderState> = AtomicReference(SplitProviderState()),
         initMutex: Mutex = Mutex(),
         config: SplitProvider.Config = testConfig(),
-        sdkInitializer: SdkInitializer = mockk(),
+        sdkManager: SdkManager = mockk(),
         defaultReadyTimeoutMs: Long = 10_000L,
-    ): SplitProviderInitializer {
-        return SplitProviderInitializer(
+    ): Initializer {
+        return Initializer(
             stateRef = stateRef,
             config = config,
-            sdkInitializer = sdkInitializer,
+            sdkManager = sdkManager,
             defaultReadyTimeoutMs = defaultReadyTimeoutMs
         )
     }

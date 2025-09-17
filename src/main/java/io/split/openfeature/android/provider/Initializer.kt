@@ -13,10 +13,10 @@ import kotlin.coroutines.cancellation.CancellationException
 /**
  * Handles initialization, context changes and shutdown for SplitProvider.
  */
-internal class SplitProviderInitializer(
+internal class Initializer(
     private val stateRef: AtomicReference<SplitProviderState>,
     private val config: SplitProvider.Config,
-    private val sdkInitializer: SdkInitializer,
+    private val sdkManager: SdkManager,
     private val defaultReadyTimeoutMs: Long,
 ) {
     private val initMutex = Mutex()
@@ -103,7 +103,7 @@ internal class SplitProviderInitializer(
         targetingKey: String,
     ): Pair<SplitFactory, SplitClient> {
         return mapSdkInitializerExceptions {
-            sdkInitializer.initialize(
+            sdkManager.initialize(
                 appContext = appContext,
                 sdkKey = sdkKey,
                 targetingKey = targetingKey,
@@ -117,7 +117,7 @@ internal class SplitProviderInitializer(
         targetingKey: String,
     ): SplitClient {
         return mapSdkInitializerExceptions {
-            sdkInitializer.getReadyClient(
+            sdkManager.getReadyClient(
                 factory = factory,
                 targetingKey = targetingKey,
                 timeoutMs = defaultReadyTimeoutMs
