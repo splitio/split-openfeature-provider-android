@@ -187,8 +187,8 @@ class SplitProviderTest : BaseMockkTest() {
         coVerify(exactly = 1) { sdkInitializer.initialize(any(), any(), any(), any()) }
     }
 
-    @Test(expected = ProviderFatalError::class)
-    fun `onContextSet throws when new context is missing targeting key`() = runTest(testDispatcher) {
+    @Test
+    fun `onContextSet updates evaluationContext when new context is missing targeting key`() = runTest(testDispatcher) {
         val factory = mockk<SplitFactory>()
         val client = mockk<SplitClient>()
         val sdkInitializer = mockk<SdkInitializer>()
@@ -203,6 +203,8 @@ class SplitProviderTest : BaseMockkTest() {
 
         // Should not attempt to get a new client
         coVerify(exactly = 0) { sdkInitializer.getReadyClient(any(), any(), any()) }
+        // And initialize should have been called just once
+        coVerify(exactly = 1) { sdkInitializer.initialize(any(), any(), any(), any()) }
     }
 
     @Test(expected = ProviderNotReadyError::class)

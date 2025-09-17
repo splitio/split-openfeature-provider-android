@@ -96,10 +96,12 @@ class SplitProvider internal constructor(
                 return
             }
 
-            val newKey = requireTargetingKey(newContext)
+            val newKey: String = newContext.getTargetingKey()
             val oldKey = current.defaultContext?.getTargetingKey()
 
-            if (newKey == oldKey) {
+            // If no new key is provided (null or blank), or the key didn't change,
+            // just update the stored context and keep the client
+            if (newKey.isBlank() || newKey == oldKey) {
                 state.set(current.copy(defaultContext = newContext))
                 return
             }
