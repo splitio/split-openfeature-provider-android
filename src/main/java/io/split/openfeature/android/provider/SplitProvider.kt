@@ -26,7 +26,6 @@ class SplitProvider internal constructor(
     private val sdkInitializer: SdkInitializer,
 ) : FeatureProvider {
 
-    // Public convenience constructor
     constructor(
         hooks: List<Hook<*>> = emptyList(),
         metadata: ProviderMetadata = object : ProviderMetadata {
@@ -77,6 +76,7 @@ class SplitProvider internal constructor(
             } catch (_: IllegalStateException) {
                 throw OpenFeatureError.ProviderNotReadyError()
             } catch (t: Throwable) {
+                t.printStackTrace()
                 throw OpenFeatureError.ProviderFatalError()
             }
 
@@ -92,10 +92,54 @@ class SplitProvider internal constructor(
         }
     }
 
+    @Throws(OpenFeatureError::class, CancellationException::class)
     override suspend fun onContextSet(
         oldContext: EvaluationContext?, newContext: EvaluationContext
     ) {
-        TODO("Not yet implemented")
+        if (!state.get().initialized) {
+            return
+        }
+        initMutex.withLock {
+            val current = state.get()
+            if (!current.initialized) {
+                return
+            }
+
+            if (newContext == oldContext) {
+                return
+            }
+
+            val newKey = newContext.getTargetingKey()
+                ?: throw OpenFeatureError.ProviderFatalError()
+            val oldKey = current.defaultContext?.getTargetingKey()
+
+            if (newKey == oldKey) {
+                state.set(current.copy(defaultContext = newContext))
+                return
+            }
+
+            val currentFactory = current.splitFactory
+                ?: throw OpenFeatureError.ProviderFatalError()
+
+            val newClient = try {
+                sdkInitializer.getReadyClient(
+                    factory = currentFactory,
+                    targetingKey = newKey,
+                    timeoutMs = DEFAULT_READY_TIMEOUT_MS
+                )
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (_: IllegalStateException) {
+                throw OpenFeatureError.ProviderNotReadyError()
+            } catch (t: Throwable) {
+                t.printStackTrace()
+                throw OpenFeatureError.ProviderFatalError()
+            }
+
+            state.set(
+                current.copy(splitClient = newClient, defaultContext = newContext)
+            )
+        }
     }
 
     override fun getBooleanEvaluation(
@@ -149,6 +193,7 @@ class SplitProvider internal constructor(
         val splitFactory: SplitFactory? = null,
         val splitClient: SplitClient? = null,
     )
+
     private companion object {
         const val NAME = "Split"
         const val DEFAULT_READY_TIMEOUT_MS = 10_000L
