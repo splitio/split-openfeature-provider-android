@@ -1,8 +1,8 @@
 package io.split.openfeature.android.provider
 
 import androidx.test.core.app.ApplicationProvider
-import dev.openfeature.kotlin.sdk.FeatureProvider
 import dev.openfeature.kotlin.sdk.EvaluationContext
+import dev.openfeature.kotlin.sdk.FeatureProvider
 import dev.openfeature.kotlin.sdk.ImmutableContext
 import io.mockk.coVerify
 import io.mockk.mockk
