@@ -17,7 +17,7 @@ import kotlinx.coroutines.withTimeout
 /**
  * Abstracts the initialization of the Split SDK.
  */
-internal interface SdkInitializer {
+internal interface SdkManager {
     /**
      * Build a SplitFactory and obtain a SplitClient for the provided targetingKey, awaiting readiness.
      * Returns Pair<SplitFactory, SplitClient> when READY. Throws on timeout or failures.
@@ -35,9 +35,9 @@ internal interface SdkInitializer {
     suspend fun getReadyClient(factory: SplitFactory, targetingKey: String, timeoutMs: Long): SplitClient
 }
 
-internal class SplitSdkInitializer(
+internal class SplitSdkManager(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
-) : SdkInitializer {
+) : SdkManager {
     override suspend fun initialize(
         appContext: Context,
         sdkKey: String,
