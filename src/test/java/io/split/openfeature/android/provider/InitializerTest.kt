@@ -170,6 +170,32 @@ class InitializerTest : BaseMockkTest() {
     }
 
     @Test
+    fun `onContextSet reuses previously ready client when switching back to a known key`() = runTest(testDispatcher) {
+        val factory = mockk<SplitFactory>()
+        val client1 = mockk<SplitClient>()
+        val client2 = mockk<SplitClient>()
+        val sdkManager = mockk<SdkManager>()
+        coEvery { sdkManager.initialize(any(), any(), "user-1", any()) } returns (factory to client1)
+        coEvery { sdkManager.getReadyClient(factory, "user-2", any()) } returns client2
+        // If not cached, a naive implementation would call getReadyClient again for user-1.
+        // We expect caching to avoid this second call.
+
+        val stateRef = AtomicReference(SplitProviderState())
+        val initializer = initializer(stateRef = stateRef, sdkManager = sdkManager)
+
+        val key1 = ImmutableContext(targetingKey = "user-1")
+        val key2 = ImmutableContext(targetingKey = "user-2")
+
+        initializer.initialize(key1)
+        initializer.onContextSet(key1, key2) // instantiate user-2
+        initializer.onContextSet(key2, key1) // switch back to user-1 (should reuse, no new call)
+
+        coVerify(exactly = 1) { sdkManager.initialize(any(), any(), any(), any()) }
+        coVerify(exactly = 1) { sdkManager.getReadyClient(factory, "user-2", any()) }
+        coVerify(exactly = 0) { sdkManager.getReadyClient(factory, "user-1", any()) }
+    }
+
+    @Test
     fun `onContextSet updates evaluationContext when new context is missing targeting key`() = runTest(testDispatcher) {
         val factory = mockk<SplitFactory>()
         val client = mockk<SplitClient>()

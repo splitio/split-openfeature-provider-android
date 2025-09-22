@@ -41,7 +41,7 @@ internal class DefaultSerialization : Serialization {
         booleanOrNull?.let { return Value.Boolean(it) }
 
         val asDouble = doubleOrNull ?: return Value.Null
-        // If the double is an integer value within Int range, prefer Integer
+
         val asIntCandidate = asDouble.toInt()
         return if (asIntCandidate.toDouble() == asDouble &&
             asDouble <= Int.MAX_VALUE.toDouble() && asDouble >= Int.MIN_VALUE.toDouble()

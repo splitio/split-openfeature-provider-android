@@ -17,7 +17,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-@OptIn(ExperimentalCoroutinesApi::class)
 @Config(manifest = Config.NONE)
 @RunWith(RobolectricTestRunner::class)
 class SplitProviderTest : BaseMockkTest() {

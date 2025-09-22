@@ -10,6 +10,15 @@ import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 
+interface FeatureProviderInitializer {
+    @Throws(OpenFeatureError::class, CancellationException::class)
+    suspend fun initialize(initialContext: EvaluationContext?)
+
+    @Throws(OpenFeatureError::class, CancellationException::class)
+    suspend fun onContextSet(oldContext: EvaluationContext?, newContext: EvaluationContext)
+    fun shutdown()
+}
+
 /**
  * Handles initialization, context changes and shutdown for SplitProvider.
  */
@@ -18,11 +27,11 @@ internal class Initializer(
     private val config: SplitProvider.Config,
     private val sdkManager: SdkManager,
     private val defaultReadyTimeoutMs: Long,
-) {
+) : FeatureProviderInitializer {
     private val initMutex = Mutex()
 
     @Throws(OpenFeatureError::class, CancellationException::class)
-    suspend fun initialize(initialContext: EvaluationContext?) {
+    override suspend fun initialize(initialContext: EvaluationContext?) {
         if (stateRef.get().initialized) {
             return
         }
@@ -47,14 +56,19 @@ internal class Initializer(
                     initialized = true,
                     defaultContext = ctxToStore,
                     splitFactory = factory,
-                    splitClient = client
+                    splitClient = client,
+                    activeKey = targetingKey,
+                    clients = mapOf(targetingKey to client)
                 )
             )
         }
     }
 
     @Throws(OpenFeatureError::class, CancellationException::class)
-    suspend fun onContextSet(oldContext: EvaluationContext?, newContext: EvaluationContext) {
+    override suspend fun onContextSet(
+        oldContext: EvaluationContext?,
+        newContext: EvaluationContext
+    ) {
         if (!stateRef.get().initialized) {
             return
         }
@@ -80,16 +94,37 @@ internal class Initializer(
             val currentFactory = current.splitFactory
                 ?: throw OpenFeatureError.ProviderFatalError()
 
+            // Reuse cached client if available
+            val cached = current.clients[newKey]
+            if (cached != null) {
+                stateRef.set(
+                    current.copy(
+                        splitClient = cached,
+                        defaultContext = newContext,
+                        activeKey = newKey
+                    )
+                )
+                return
+            }
+
+            // Otherwise, create and cache a new ready client for this key
             val newClient = getReadyClientOrThrow(
                 factory = currentFactory,
                 targetingKey = newKey
             )
 
-            stateRef.set(current.copy(splitClient = newClient, defaultContext = newContext))
+            stateRef.set(
+                current.copy(
+                    splitClient = newClient,
+                    defaultContext = newContext,
+                    activeKey = newKey,
+                    clients = current.clients + (newKey to newClient)
+                )
+            )
         }
     }
 
-    fun shutdown() {
+    override fun shutdown() {
         // For now, no-op. We could optionally destroy the factory if API allows.
     }
 
