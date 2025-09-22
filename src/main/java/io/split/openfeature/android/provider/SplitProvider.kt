@@ -26,7 +26,6 @@ class SplitProvider internal constructor(
     private val sdkInitializer: SdkInitializer,
 ) : FeatureProvider {
 
-    // Public convenience constructor
     constructor(
         hooks: List<Hook<*>> = emptyList(),
         metadata: ProviderMetadata = object : ProviderMetadata {
@@ -60,25 +59,13 @@ class SplitProvider internal constructor(
             }
 
             val ctxToStore = current.defaultContext ?: initialContext
-            if (ctxToStore?.getTargetingKey() == null) {
-                throw OpenFeatureError.ProviderFatalError()
-            }
-            val targetingKey = ctxToStore.getTargetingKey()
+            val targetingKey = requireTargetingKey(ctxToStore)
 
-            val factoryAndClient = try {
-                sdkInitializer.initialize(
-                    appContext = config.applicationContext,
-                    sdkKey = config.sdkKey,
-                    targetingKey = targetingKey,
-                    timeoutMs = DEFAULT_READY_TIMEOUT_MS
-                )
-            } catch (ce: CancellationException) {
-                throw ce
-            } catch (_: IllegalStateException) {
-                throw OpenFeatureError.ProviderNotReadyError()
-            } catch (t: Throwable) {
-                throw OpenFeatureError.ProviderFatalError()
-            }
+            val factoryAndClient = initializeSdkOrThrow(
+                appContext = config.applicationContext,
+                sdkKey = config.sdkKey,
+                targetingKey = targetingKey
+            )
 
             val (factory, client) = factoryAndClient
             state.set(
@@ -92,10 +79,45 @@ class SplitProvider internal constructor(
         }
     }
 
+    @Throws(OpenFeatureError::class, CancellationException::class)
     override suspend fun onContextSet(
         oldContext: EvaluationContext?, newContext: EvaluationContext
     ) {
-        TODO("Not yet implemented")
+        if (!state.get().initialized) {
+            return
+        }
+        initMutex.withLock {
+            val current = state.get()
+            if (!current.initialized) {
+                return
+            }
+
+            if (newContext == oldContext) {
+                return
+            }
+
+            val newKey: String = newContext.getTargetingKey()
+            val oldKey = current.defaultContext?.getTargetingKey()
+
+            // If no new key is provided (null or blank), or the key didn't change,
+            // just update the stored context and keep the client
+            if (newKey.isBlank() || newKey == oldKey) {
+                state.set(current.copy(defaultContext = newContext))
+                return
+            }
+
+            val currentFactory = current.splitFactory
+                ?: throw OpenFeatureError.ProviderFatalError()
+
+            val newClient = getReadyClientOrThrow(
+                factory = currentFactory,
+                targetingKey = newKey
+            )
+
+            state.set(
+                current.copy(splitClient = newClient, defaultContext = newContext)
+            )
+        }
     }
 
     override fun getBooleanEvaluation(
@@ -149,6 +171,54 @@ class SplitProvider internal constructor(
         val splitFactory: SplitFactory? = null,
         val splitClient: SplitClient? = null,
     )
+
+    private fun requireTargetingKey(ctx: EvaluationContext?): String {
+        return ctx?.getTargetingKey() ?: throw OpenFeatureError.ProviderFatalError()
+    }
+
+    private suspend fun initializeSdkOrThrow(
+        appContext: Context,
+        sdkKey: String,
+        targetingKey: String,
+    ): Pair<SplitFactory, SplitClient> {
+        return mapSdkInitializerExceptions {
+            sdkInitializer.initialize(
+                appContext = appContext,
+                sdkKey = sdkKey,
+                targetingKey = targetingKey,
+                timeoutMs = DEFAULT_READY_TIMEOUT_MS
+            )
+        }
+    }
+
+    private suspend fun getReadyClientOrThrow(
+        factory: SplitFactory,
+        targetingKey: String,
+    ): SplitClient {
+        return mapSdkInitializerExceptions {
+            sdkInitializer.getReadyClient(
+                factory = factory,
+                targetingKey = targetingKey,
+                timeoutMs = DEFAULT_READY_TIMEOUT_MS
+            )
+        }
+    }
+
+    /**
+     * Maps SDK initializer exceptions to OpenFeature exceptions.
+     */
+    private suspend fun <T> mapSdkInitializerExceptions(block: suspend () -> T): T {
+        return try {
+            block()
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (_: IllegalStateException) {
+            throw OpenFeatureError.ProviderNotReadyError()
+        } catch (t: Throwable) {
+            throw OpenFeatureError.ProviderFatalError()
+        }
+    }
+
     private companion object {
         const val NAME = "Split"
         const val DEFAULT_READY_TIMEOUT_MS = 10_000L
