@@ -125,7 +125,7 @@ internal class Initializer(
     }
 
     override fun shutdown() {
-        // For now, no-op. We could optionally destroy the factory if API allows.
+        // For now, no-op. Will implement later.
     }
 
     private fun requireTargetingKey(ctx: EvaluationContext?): String {
