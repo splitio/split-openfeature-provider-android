@@ -21,13 +21,13 @@ class SplitProvider internal constructor(
     private val config: Config,
     private val state: AtomicReference<SplitProviderState> = AtomicReference(SplitProviderState()),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val initializer: FeatureProviderInitializer = Initializer(
+    private val initializer: InitializerDelegate = DefaultInitializerDelegate(
         stateRef = state,
         config = config,
-        sdkManager = SplitSdkManager(dispatcher),
+        sdkManager = SplitSdkDelegate(dispatcher),
         defaultReadyTimeoutMs = DEFAULT_READY_TIMEOUT_MS
     ),
-    private val evaluator: Evaluator = DefaultEvaluator(state),
+    private val evaluatorDelegate: EvaluatorDelegate = DefaultEvaluator(state),
 ) : FeatureProvider {
 
     constructor(
@@ -55,23 +55,23 @@ class SplitProvider internal constructor(
 
     override fun getBooleanEvaluation(
         key: String, defaultValue: Boolean, context: EvaluationContext?
-    ): ProviderEvaluation<Boolean> = evaluator.getBooleanEvaluation(key, defaultValue, context)
+    ): ProviderEvaluation<Boolean> = evaluatorDelegate.getBooleanEvaluation(key, defaultValue, context)
 
     override fun getDoubleEvaluation(
         key: String, defaultValue: Double, context: EvaluationContext?
-    ): ProviderEvaluation<Double> = evaluator.getDoubleEvaluation(key, defaultValue, context)
+    ): ProviderEvaluation<Double> = evaluatorDelegate.getDoubleEvaluation(key, defaultValue, context)
 
     override fun getIntegerEvaluation(
         key: String, defaultValue: Int, context: EvaluationContext?
-    ): ProviderEvaluation<Int> = evaluator.getIntegerEvaluation(key, defaultValue, context)
+    ): ProviderEvaluation<Int> = evaluatorDelegate.getIntegerEvaluation(key, defaultValue, context)
 
     override fun getObjectEvaluation(
         key: String, defaultValue: Value, context: EvaluationContext?
-    ): ProviderEvaluation<Value> = evaluator.getObjectEvaluation(key, defaultValue, context)
+    ): ProviderEvaluation<Value> = evaluatorDelegate.getObjectEvaluation(key, defaultValue, context)
 
     override fun getStringEvaluation(
         key: String, defaultValue: String, context: EvaluationContext?
-    ): ProviderEvaluation<String> = evaluator.getStringEvaluation(key, defaultValue, context)
+    ): ProviderEvaluation<String> = evaluatorDelegate.getStringEvaluation(key, defaultValue, context)
 
     override fun shutdown() = initializer.shutdown()
 

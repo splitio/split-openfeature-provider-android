@@ -26,7 +26,7 @@ import kotlin.coroutines.cancellation.CancellationException
 @OptIn(ExperimentalCoroutinesApi::class)
 @Config(manifest = Config.NONE)
 @RunWith(RobolectricTestRunner::class)
-class InitializerTest : BaseMockkTest() {
+class InitializerDelegateTest : BaseMockkTest() {
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -50,7 +50,7 @@ class InitializerTest : BaseMockkTest() {
     fun `initialize completes successfully when SDK_READY fires`() = runTest(testDispatcher) {
         val factory = mockk<SplitFactory>()
         val client = mockk<SplitClient>()
-        val sdkManager = mockk<SdkManager>()
+        val sdkManager = mockk<SdkDelegate>()
         coEvery { sdkManager.initialize(any(), any(), any(), any()) } returns (factory to client)
 
         val stateRef = AtomicReference(SplitProviderState())
@@ -66,7 +66,7 @@ class InitializerTest : BaseMockkTest() {
     fun `initialize is idempotent`() = runTest(testDispatcher) {
         val factory = mockk<SplitFactory>()
         val client = mockk<SplitClient>()
-        val sdkManager = mockk<SdkManager>()
+        val sdkManager = mockk<SdkDelegate>()
         coEvery { sdkManager.initialize(any(), any(), any(), any()) } returns (factory to client)
 
         val stateRef = AtomicReference(SplitProviderState())
@@ -84,7 +84,7 @@ class InitializerTest : BaseMockkTest() {
     fun `initialize propagates cancellation`() = runTest(testDispatcher) {
         val factory = mockk<SplitFactory>()
         val client = mockk<SplitClient>()
-        val sdkManager = mockk<SdkManager>()
+        val sdkManager = mockk<SdkDelegate>()
         coEvery { sdkManager.initialize(any(), any(), any(), any()) } coAnswers {
             delay(10_000)
             factory to client
@@ -102,7 +102,7 @@ class InitializerTest : BaseMockkTest() {
     @Test(expected = ProviderNotReadyError::class)
     fun `initialize maps IllegalStateException to ProviderNotReadyError`() =
         runTest(testDispatcher) {
-            val sdkManager = mockk<SdkManager>()
+            val sdkManager = mockk<SdkDelegate>()
             coEvery {
                 sdkManager.initialize(
                     any(),
@@ -119,7 +119,7 @@ class InitializerTest : BaseMockkTest() {
 
     @Test
     fun `onContextSet does not do anything if not initialized`() = runTest(testDispatcher) {
-        val sdkManager = mockk<SdkManager>()
+        val sdkManager = mockk<SdkDelegate>()
         val initializer = initializer(sdkManager = sdkManager)
         initializer.onContextSet(null, ImmutableContext(targetingKey = "user-1"))
         coVerify(exactly = 0) { sdkManager.initialize(any(), any(), any(), any()) }
@@ -128,7 +128,7 @@ class InitializerTest : BaseMockkTest() {
     @Test
     fun `onContextSet does not do anything if new context is equal to old context`() =
         runTest(testDispatcher) {
-            val sdkManager = mockk<SdkManager>()
+            val sdkManager = mockk<SdkDelegate>()
             val factory = mockk<SplitFactory>()
             val client = mockk<SplitClient>()
             coEvery {
@@ -154,7 +154,7 @@ class InitializerTest : BaseMockkTest() {
         val factory = mockk<SplitFactory>()
         val client = mockk<SplitClient>()
         val client2 = mockk<SplitClient>()
-        val sdkManager = mockk<SdkManager>()
+        val sdkManager = mockk<SdkDelegate>()
         coEvery { sdkManager.initialize(any(), any(), "user-1", any()) } returns (factory to client)
         coEvery { sdkManager.getReadyClient(factory, "user-2", any()) } returns client2
 
@@ -172,7 +172,7 @@ class InitializerTest : BaseMockkTest() {
         runTest(testDispatcher) {
             val factory = mockk<SplitFactory>()
             val client = mockk<SplitClient>()
-            val sdkManager = mockk<SdkManager>()
+            val sdkManager = mockk<SdkDelegate>()
             coEvery {
                 sdkManager.initialize(
                     any(),
@@ -195,12 +195,13 @@ class InitializerTest : BaseMockkTest() {
         }
 
     @Test
-    fun `onContextSet reuses previously ready client when switching back to a known key`() =
+    fun `onContextSet fetches a new ready client when switching back to a previously used key`() =
         runTest(testDispatcher) {
             val factory = mockk<SplitFactory>()
-            val client1 = mockk<SplitClient>()
-            val client2 = mockk<SplitClient>()
-            val sdkManager = mockk<SdkManager>()
+            val initialClientForUser1 = mockk<SplitClient>()
+            val clientForUser2 = mockk<SplitClient>()
+            val newClientForUser1 = mockk<SplitClient>()
+            val sdkManager = mockk<SdkDelegate>()
             coEvery {
                 sdkManager.initialize(
                     any(),
@@ -208,10 +209,9 @@ class InitializerTest : BaseMockkTest() {
                     "user-1",
                     any()
                 )
-            } returns (factory to client1)
-            coEvery { sdkManager.getReadyClient(factory, "user-2", any()) } returns client2
-            // If not cached, a naive implementation would call getReadyClient again for user-1.
-            // We expect caching to avoid this second call.
+            } returns (factory to initialClientForUser1)
+            coEvery { sdkManager.getReadyClient(factory, "user-2", any()) } returns clientForUser2
+            coEvery { sdkManager.getReadyClient(factory, "user-1", any()) } returns newClientForUser1
 
             val stateRef = AtomicReference(SplitProviderState())
             val initializer = initializer(stateRef = stateRef, sdkManager = sdkManager)
@@ -220,15 +220,12 @@ class InitializerTest : BaseMockkTest() {
             val key2 = ImmutableContext(targetingKey = "user-2")
 
             initializer.initialize(key1)
-            initializer.onContextSet(key1, key2) // instantiate user-2
-            initializer.onContextSet(
-                key2,
-                key1
-            ) // switch back to user-1 (should reuse, no new call)
+            initializer.onContextSet(key1, key2) // switch to user-2
+            initializer.onContextSet(key2, key1) // switch back to user-1 (should fetch new client)
 
             coVerify(exactly = 1) { sdkManager.initialize(any(), any(), any(), any()) }
             coVerify(exactly = 1) { sdkManager.getReadyClient(factory, "user-2", any()) }
-            coVerify(exactly = 0) { sdkManager.getReadyClient(factory, "user-1", any()) }
+            coVerify(exactly = 1) { sdkManager.getReadyClient(factory, "user-1", any()) }
         }
 
     @Test
@@ -236,7 +233,7 @@ class InitializerTest : BaseMockkTest() {
         runTest(testDispatcher) {
             val factory = mockk<SplitFactory>()
             val client = mockk<SplitClient>()
-            val sdkManager = mockk<SdkManager>()
+            val sdkManager = mockk<SdkDelegate>()
             coEvery {
                 sdkManager.initialize(
                     any(),
@@ -263,7 +260,7 @@ class InitializerTest : BaseMockkTest() {
         runTest(testDispatcher) {
             val factory = mockk<SplitFactory>()
             val client = mockk<SplitClient>()
-            val sdkManager = mockk<SdkManager>()
+            val sdkManager = mockk<SdkDelegate>()
             coEvery {
                 sdkManager.initialize(
                     any(),
@@ -294,7 +291,7 @@ class InitializerTest : BaseMockkTest() {
         runTest(testDispatcher) {
             val factory = mockk<SplitFactory>()
             val client = mockk<SplitClient>()
-            val sdkManager = mockk<SdkManager>()
+            val sdkManager = mockk<SdkDelegate>()
             coEvery {
                 sdkManager.initialize(
                     any(),
@@ -319,10 +316,10 @@ class InitializerTest : BaseMockkTest() {
     private fun initializer(
         stateRef: AtomicReference<SplitProviderState> = AtomicReference(SplitProviderState()),
         config: SplitProvider.Config = testConfig(),
-        sdkManager: SdkManager = mockk(),
+        sdkManager: SdkDelegate = mockk(),
         defaultReadyTimeoutMs: Long = 10_000L,
-    ): Initializer {
-        return Initializer(
+    ): DefaultInitializerDelegate {
+        return DefaultInitializerDelegate(
             stateRef = stateRef,
             config = config,
             sdkManager = sdkManager,

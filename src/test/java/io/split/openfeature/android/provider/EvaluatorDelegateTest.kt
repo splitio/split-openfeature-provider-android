@@ -10,6 +10,7 @@ import io.split.android.client.SplitClient
 import io.split.android.client.SplitResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -18,27 +19,20 @@ import java.util.concurrent.atomic.AtomicReference
 
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
-class EvaluatorTest : BaseMockkTest() {
+class EvaluatorDelegateTest : BaseMockkTest() {
 
     private fun evaluatorWith(
         client: SplitClient? = null,
-        defaultContext: EvaluationContext? = null,
-        clients: Map<String, SplitClient>? = null
+        defaultContext: EvaluationContext? = null
     ): DefaultEvaluator {
         val targetingKey = defaultContext?.getTargetingKey()
-        val clientsMap = when {
-            clients != null -> clients
-            client != null && !targetingKey.isNullOrBlank() -> mapOf(targetingKey to client)
-            else -> emptyMap()
-        }
         val state = AtomicReference(
             SplitProviderState(
                 initialized = client != null,
                 defaultContext = defaultContext,
                 splitFactory = null,
                 splitClient = client,
-                activeKey = targetingKey,
-                clients = clientsMap
+                activeKey = targetingKey
             )
         )
         return DefaultEvaluator(state)
@@ -110,6 +104,21 @@ class EvaluatorTest : BaseMockkTest() {
 
         val otherCtx: EvaluationContext = ImmutableContext(targetingKey = "other-user")
         evaluator.getBooleanEvaluation("flag", defaultValue = true, context = otherCtx)
+    }
+
+    @Test
+    fun `mismatched key error instructs to call setContext first`() {
+        val client = mockk<SplitClient>(relaxed = true)
+        val defaultCtx: EvaluationContext = ImmutableContext(targetingKey = "current-user")
+        val evaluator = evaluatorWith(client = client, defaultContext = defaultCtx)
+
+        val otherCtx: EvaluationContext = ImmutableContext(targetingKey = "other-user")
+        try {
+            evaluator.getBooleanEvaluation("flag", defaultValue = true, context = otherCtx)
+            fail("Expected ProviderNotReadyError to be thrown")
+        } catch (e: OpenFeatureError.ProviderNotReadyError) {
+            assertTrue(e.message?.contains("Call setContext first to switch.") == true)
+        }
     }
     @Test
     fun `uses default context from state when context param is null`() {

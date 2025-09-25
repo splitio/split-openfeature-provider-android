@@ -14,7 +14,7 @@ import io.split.android.client.SplitResult
 import java.util.concurrent.atomic.AtomicReference
 
 
-internal interface Evaluator {
+internal interface EvaluatorDelegate {
 
     fun getBooleanEvaluation(
         key: String, defaultValue: Boolean, context: EvaluationContext?
@@ -40,7 +40,7 @@ internal interface Evaluator {
 internal class DefaultEvaluator(
     private val state: AtomicReference<SplitProviderState>,
     private val serialization: Serialization = DefaultSerialization()
-) : Evaluator {
+) : EvaluatorDelegate {
 
     override fun getBooleanEvaluation(
         key: String, defaultValue: Boolean, context: EvaluationContext?
@@ -128,17 +128,21 @@ internal class DefaultEvaluator(
 
         // Define evaluation context
         val evalContext = context ?: currentState.defaultContext
-        ?: throw TargetingKeyMissingError("Targeting key missing in evaluation context")
+            ?: throw TargetingKeyMissingError("Targeting key missing in evaluation context")
 
         val requestedKey = evalContext.getTargetingKey()
 
-        // Look up client for requested key from cache. If not found, throw ProviderNotReadyError
-        // Normally, the client will be found because the user would've called setContext first
-        val client = when {
-            requestedKey.isBlank() -> throw TargetingKeyMissingError("Targeting key missing in evaluation context")
-            currentState.clients.containsKey(requestedKey) -> currentState.clients[requestedKey]
-            else -> null
-        } ?: throw ProviderNotReadyError()
+        if (requestedKey.isBlank()) {
+            throw TargetingKeyMissingError("Targeting key missing in evaluation context")
+        }
+
+        val client = currentState.splitClient ?: throw ProviderNotReadyError()
+
+        // Ensure the active client matches the requested key. To use a different key, caller must setContext first.
+        if (currentState.activeKey != requestedKey) {
+            throw ProviderNotReadyError("Requested targetingKey ('$requestedKey') differs from active key ('${currentState.activeKey}'). Call setContext first to switch.")
+        }
+
         return Pair(evalContext, client)
     }
 

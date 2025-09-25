@@ -13,5 +13,4 @@ internal data class SplitProviderState(
     val splitFactory: SplitFactory? = null,
     val splitClient: SplitClient? = null,
     val activeKey: String? = null,
-    val clients: Map<String, SplitClient> = emptyMap(),
 )

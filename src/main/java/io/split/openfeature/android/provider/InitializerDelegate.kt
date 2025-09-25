@@ -10,7 +10,7 @@ import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 
-interface FeatureProviderInitializer {
+interface InitializerDelegate {
     @Throws(OpenFeatureError::class, CancellationException::class)
     suspend fun initialize(initialContext: EvaluationContext?)
 
@@ -22,12 +22,12 @@ interface FeatureProviderInitializer {
 /**
  * Handles initialization, context changes and shutdown for SplitProvider.
  */
-internal class Initializer(
+internal class DefaultInitializerDelegate(
     private val stateRef: AtomicReference<SplitProviderState>,
     private val config: SplitProvider.Config,
-    private val sdkManager: SdkManager,
+    private val sdkManager: SdkDelegate,
     private val defaultReadyTimeoutMs: Long,
-) : FeatureProviderInitializer {
+) : InitializerDelegate {
     private val initMutex = Mutex()
 
     @Throws(OpenFeatureError::class, CancellationException::class)
@@ -57,8 +57,7 @@ internal class Initializer(
                     defaultContext = ctxToStore,
                     splitFactory = factory,
                     splitClient = client,
-                    activeKey = targetingKey,
-                    clients = mapOf(targetingKey to client)
+                    activeKey = targetingKey
                 )
             )
         }
@@ -94,20 +93,7 @@ internal class Initializer(
             val currentFactory = current.splitFactory
                 ?: throw OpenFeatureError.ProviderFatalError()
 
-            // Reuse cached client if available
-            val cached = current.clients[newKey]
-            if (cached != null) {
-                stateRef.set(
-                    current.copy(
-                        splitClient = cached,
-                        defaultContext = newContext,
-                        activeKey = newKey
-                    )
-                )
-                return
-            }
-
-            // Otherwise, create and cache a new ready client for this key
+            // Create a new ready client for this key
             val newClient = getReadyClientOrThrow(
                 factory = currentFactory,
                 targetingKey = newKey
@@ -117,8 +103,7 @@ internal class Initializer(
                 current.copy(
                     splitClient = newClient,
                     defaultContext = newContext,
-                    activeKey = newKey,
-                    clients = current.clients + (newKey to newClient)
+                    activeKey = newKey
                 )
             )
         }

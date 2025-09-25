@@ -27,10 +27,10 @@ import kotlin.coroutines.cancellation.CancellationException
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
-class SdkManagerTest : BaseMockkTest() {
+class SplitSdkDelegateTest : BaseMockkTest() {
 
     private val testDispatcher = StandardTestDispatcher()
-    private val initializer = SplitSdkManager(testDispatcher)
+    private val initializer = SplitSdkDelegate(testDispatcher)
 
     @Test
     fun `getReadyClient completes on SDK_READY`() = runTest(testDispatcher) {
