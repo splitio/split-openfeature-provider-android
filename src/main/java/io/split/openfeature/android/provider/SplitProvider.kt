@@ -6,6 +6,7 @@ import dev.openfeature.kotlin.sdk.FeatureProvider
 import dev.openfeature.kotlin.sdk.Hook
 import dev.openfeature.kotlin.sdk.ProviderEvaluation
 import dev.openfeature.kotlin.sdk.ProviderMetadata
+import dev.openfeature.kotlin.sdk.TrackingEventDetails
 import dev.openfeature.kotlin.sdk.Value
 import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError
 import kotlinx.coroutines.CoroutineDispatcher
@@ -28,6 +29,7 @@ class SplitProvider internal constructor(
         defaultReadyTimeoutMs = DEFAULT_READY_TIMEOUT_MS
     ),
     private val evaluatorDelegate: EvaluatorDelegate = DefaultEvaluator(state),
+    private val trackingDelegate: TrackingDelegate = DefaultTrackingDelegate(state),
 ) : FeatureProvider {
 
     constructor(
@@ -55,11 +57,13 @@ class SplitProvider internal constructor(
 
     override fun getBooleanEvaluation(
         key: String, defaultValue: Boolean, context: EvaluationContext?
-    ): ProviderEvaluation<Boolean> = evaluatorDelegate.getBooleanEvaluation(key, defaultValue, context)
+    ): ProviderEvaluation<Boolean> =
+        evaluatorDelegate.getBooleanEvaluation(key, defaultValue, context)
 
     override fun getDoubleEvaluation(
         key: String, defaultValue: Double, context: EvaluationContext?
-    ): ProviderEvaluation<Double> = evaluatorDelegate.getDoubleEvaluation(key, defaultValue, context)
+    ): ProviderEvaluation<Double> =
+        evaluatorDelegate.getDoubleEvaluation(key, defaultValue, context)
 
     override fun getIntegerEvaluation(
         key: String, defaultValue: Int, context: EvaluationContext?
@@ -71,9 +75,18 @@ class SplitProvider internal constructor(
 
     override fun getStringEvaluation(
         key: String, defaultValue: String, context: EvaluationContext?
-    ): ProviderEvaluation<String> = evaluatorDelegate.getStringEvaluation(key, defaultValue, context)
+    ): ProviderEvaluation<String> =
+        evaluatorDelegate.getStringEvaluation(key, defaultValue, context)
 
     override fun shutdown() = initializer.shutdown()
+
+    override fun track(
+        trackingEventName: String,
+        context: EvaluationContext?,
+        details: TrackingEventDetails?
+    ) {
+        trackingDelegate.track(trackingEventName, context, details)
+    }
 
     /**
      * Configuration holder for the provider.
