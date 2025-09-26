@@ -12,4 +12,5 @@ internal data class SplitProviderState(
     val defaultContext: EvaluationContext? = null,
     val splitFactory: SplitFactory? = null,
     val splitClient: SplitClient? = null,
+    val activeKey: String? = null,
 )

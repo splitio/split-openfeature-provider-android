@@ -1,8 +1,8 @@
 package io.split.openfeature.android.provider
 
 import androidx.test.core.app.ApplicationProvider
-import dev.openfeature.kotlin.sdk.EvaluationContext
 import dev.openfeature.kotlin.sdk.FeatureProvider
+import dev.openfeature.kotlin.sdk.EvaluationContext
 import dev.openfeature.kotlin.sdk.ImmutableContext
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -35,7 +35,7 @@ class SplitProviderTest : BaseMockkTest() {
 
     @Test
     fun `initialize delegates to initializer`() = runTest(StandardTestDispatcher()) {
-        val initializer = mockk<Initializer>(relaxed = true)
+        val initializer = mockk<DefaultInitializerDelegate>(relaxed = true)
         val provider = SplitProvider(
             config = testConfig(),
             dispatcher = StandardTestDispatcher(),
@@ -50,7 +50,7 @@ class SplitProviderTest : BaseMockkTest() {
 
     @Test
     fun `onContextSet delegates to initializer`() = runTest(StandardTestDispatcher()) {
-        val initializer = mockk<Initializer>(relaxed = true)
+        val initializer = mockk<DefaultInitializerDelegate>(relaxed = true)
         val provider = SplitProvider(
             config = testConfig(),
             dispatcher = StandardTestDispatcher(),
@@ -66,7 +66,7 @@ class SplitProviderTest : BaseMockkTest() {
 
     @Test
     fun `shutdown delegates to initializer`() {
-        val initializer = mockk<Initializer>(relaxed = true)
+        val initializer = mockk<DefaultInitializerDelegate>(relaxed = true)
         val provider = SplitProvider(
             config = testConfig(),
             initializer = initializer

@@ -10,19 +10,28 @@ import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 
+interface InitializerDelegate {
+    @Throws(OpenFeatureError::class, CancellationException::class)
+    suspend fun initialize(initialContext: EvaluationContext?)
+
+    @Throws(OpenFeatureError::class, CancellationException::class)
+    suspend fun onContextSet(oldContext: EvaluationContext?, newContext: EvaluationContext)
+    fun shutdown()
+}
+
 /**
  * Handles initialization, context changes and shutdown for SplitProvider.
  */
-internal class Initializer(
+internal class DefaultInitializerDelegate(
     private val stateRef: AtomicReference<SplitProviderState>,
     private val config: SplitProvider.Config,
-    private val sdkManager: SdkManager,
+    private val sdkManager: SdkDelegate,
     private val defaultReadyTimeoutMs: Long,
-) {
+) : InitializerDelegate {
     private val initMutex = Mutex()
 
     @Throws(OpenFeatureError::class, CancellationException::class)
-    suspend fun initialize(initialContext: EvaluationContext?) {
+    override suspend fun initialize(initialContext: EvaluationContext?) {
         if (stateRef.get().initialized) {
             return
         }
@@ -47,14 +56,18 @@ internal class Initializer(
                     initialized = true,
                     defaultContext = ctxToStore,
                     splitFactory = factory,
-                    splitClient = client
+                    splitClient = client,
+                    activeKey = targetingKey
                 )
             )
         }
     }
 
     @Throws(OpenFeatureError::class, CancellationException::class)
-    suspend fun onContextSet(oldContext: EvaluationContext?, newContext: EvaluationContext) {
+    override suspend fun onContextSet(
+        oldContext: EvaluationContext?,
+        newContext: EvaluationContext
+    ) {
         if (!stateRef.get().initialized) {
             return
         }
@@ -80,17 +93,24 @@ internal class Initializer(
             val currentFactory = current.splitFactory
                 ?: throw OpenFeatureError.ProviderFatalError()
 
+            // Create a new ready client for this key
             val newClient = getReadyClientOrThrow(
                 factory = currentFactory,
                 targetingKey = newKey
             )
 
-            stateRef.set(current.copy(splitClient = newClient, defaultContext = newContext))
+            stateRef.set(
+                current.copy(
+                    splitClient = newClient,
+                    defaultContext = newContext,
+                    activeKey = newKey
+                )
+            )
         }
     }
 
-    fun shutdown() {
-        // For now, no-op. We could optionally destroy the factory if API allows.
+    override fun shutdown() {
+        // For now, no-op. Will implement later.
     }
 
     private fun requireTargetingKey(ctx: EvaluationContext?): String {

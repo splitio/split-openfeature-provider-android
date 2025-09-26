@@ -21,12 +21,13 @@ class SplitProvider internal constructor(
     private val config: Config,
     private val state: AtomicReference<SplitProviderState> = AtomicReference(SplitProviderState()),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val initializer: Initializer = Initializer(
+    private val initializer: InitializerDelegate = DefaultInitializerDelegate(
         stateRef = state,
         config = config,
-        sdkManager = SplitSdkManager(dispatcher),
+        sdkManager = SplitSdkDelegate(dispatcher),
         defaultReadyTimeoutMs = DEFAULT_READY_TIMEOUT_MS
     ),
+    private val evaluatorDelegate: EvaluatorDelegate = DefaultEvaluator(state),
 ) : FeatureProvider {
 
     constructor(
@@ -43,53 +44,36 @@ class SplitProvider internal constructor(
         dispatcher = Dispatchers.IO
     )
 
-    // Delegate lifecycle to initializer collaborator
-
     @Throws(OpenFeatureError::class, CancellationException::class)
-    override suspend fun initialize(initialContext: EvaluationContext?) {
+    override suspend fun initialize(initialContext: EvaluationContext?) =
         initializer.initialize(initialContext)
-    }
 
     @Throws(OpenFeatureError::class, CancellationException::class)
     override suspend fun onContextSet(
         oldContext: EvaluationContext?, newContext: EvaluationContext
-    ) {
-        initializer.onContextSet(oldContext, newContext)
-    }
+    ) = initializer.onContextSet(oldContext, newContext)
 
     override fun getBooleanEvaluation(
         key: String, defaultValue: Boolean, context: EvaluationContext?
-    ): ProviderEvaluation<Boolean> {
-        TODO("Not yet implemented")
-    }
+    ): ProviderEvaluation<Boolean> = evaluatorDelegate.getBooleanEvaluation(key, defaultValue, context)
 
     override fun getDoubleEvaluation(
         key: String, defaultValue: Double, context: EvaluationContext?
-    ): ProviderEvaluation<Double> {
-        TODO("Not yet implemented")
-    }
+    ): ProviderEvaluation<Double> = evaluatorDelegate.getDoubleEvaluation(key, defaultValue, context)
 
     override fun getIntegerEvaluation(
         key: String, defaultValue: Int, context: EvaluationContext?
-    ): ProviderEvaluation<Int> {
-        TODO("Not yet implemented")
-    }
+    ): ProviderEvaluation<Int> = evaluatorDelegate.getIntegerEvaluation(key, defaultValue, context)
 
     override fun getObjectEvaluation(
         key: String, defaultValue: Value, context: EvaluationContext?
-    ): ProviderEvaluation<Value> {
-        TODO("Not yet implemented")
-    }
+    ): ProviderEvaluation<Value> = evaluatorDelegate.getObjectEvaluation(key, defaultValue, context)
 
     override fun getStringEvaluation(
         key: String, defaultValue: String, context: EvaluationContext?
-    ): ProviderEvaluation<String> {
-        TODO("Not yet implemented")
-    }
+    ): ProviderEvaluation<String> = evaluatorDelegate.getStringEvaluation(key, defaultValue, context)
 
-    override fun shutdown() {
-        initializer.shutdown()
-    }
+    override fun shutdown() = initializer.shutdown()
 
     /**
      * Configuration holder for the provider.
