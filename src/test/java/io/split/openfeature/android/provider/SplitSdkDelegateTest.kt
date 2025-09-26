@@ -30,7 +30,7 @@ import kotlin.coroutines.cancellation.CancellationException
 class SplitSdkDelegateTest : BaseMockkTest() {
 
     private val testDispatcher = StandardTestDispatcher()
-    private val initializer = SplitSdkDelegate(testDispatcher)
+    private val initializer = SplitSdkDelegate(testDispatcher, SplitEventsRegistry())
 
     @Test
     fun `getReadyClient completes on SDK_READY`() = runTest(testDispatcher) {

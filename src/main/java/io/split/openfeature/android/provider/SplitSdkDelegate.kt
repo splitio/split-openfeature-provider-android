@@ -36,7 +36,8 @@ internal interface SdkDelegate {
 }
 
 internal class SplitSdkDelegate(
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val eventsRegistry: SplitEventsRegistry,
 ) : SdkDelegate {
     override suspend fun initialize(
         appContext: Context,
@@ -74,6 +75,10 @@ internal class SplitSdkDelegate(
         })
 
         withTimeout(timeoutMs) { ready.await() }
+
+        // Register the long-lived events bridge once per client
+        eventsRegistry.register(client)
+
         return client
     }
 }
