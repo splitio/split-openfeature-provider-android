@@ -67,14 +67,6 @@ internal class SplitSdkDelegate(
         val client: SplitClient = factory.client(Key(targetingKey))
         val ready = CompletableDeferred<Unit>()
 
-        // If the client is already ready (e.g., reused for this key), complete immediately
-        runCatching {
-            if (client.isReady && !ready.isCompleted) {
-                ready.complete(Unit)
-            }
-        }
-
-        // Complete readiness on the first configured ready event that fires
         eventsMapping.readyEvents.forEach { event: SplitEvent ->
             client.on(event, object : SplitEventTask() {
                 override fun onPostExecution(client: SplitClient?) {
@@ -83,6 +75,12 @@ internal class SplitSdkDelegate(
                     }
                 }
             })
+        }
+
+        runCatching {
+            if (client.isReady && !ready.isCompleted) {
+                ready.complete(Unit)
+            }
         }
 
         withTimeout(timeoutMs) { ready.await() }

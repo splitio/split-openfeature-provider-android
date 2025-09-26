@@ -62,7 +62,68 @@ class DefaultEventsDelegateTest {
     @Test
     fun `emits ProviderReady immediately when client is already ready`() = runTest {
         val harness = buildHarness(isClientReady = true)
-        val event = withTimeout(2_000) { harness.delegate.observe().first() }
+
+        // Start collecting events
+        val job = async { withTimeout(2_000) { harness.delegate.observe().first() } }
+        runCurrent()
+
+        val event = job.await()
+        assertEquals(OpenFeatureProviderEvents.ProviderReady, event)
+    }
+
+    @Test
+    fun `observe returns empty flow when splitClient is null`() = runTest {
+        // Set state with null splitClient
+        stateRef.set(SplitProviderState(splitClient = null))
+        val delegate = DefaultEventsDelegate(stateRef, registry)
+
+        // Should return empty flow and not crash
+        val job = async {
+            try {
+                withTimeout(1_000) {
+                    delegate.observe().first()
+                }
+                error("Expected exception - empty flow should not emit")
+            } catch (e: NoSuchElementException) {
+                // Expected - empty flow throws NoSuchElementException when calling first()
+                "success"
+            } catch (e: TimeoutCancellationException) {
+                // Also acceptable - timeout if flow doesn't emit
+                "success"
+            }
+        }
+        runCurrent()
+
+        val result = job.await()
+        assertEquals("success", result)
+    }
+
+    @Test
+    fun `client becomes ready between isReady check and listener registration`() = runTest {
+        val client = mockk<SplitClient>(relaxed = true)
+        val readySlot = slot<SplitEventTask>()
+        val updateSlot = slot<SplitEventTask>()
+        val timeoutSlot = slot<SplitEventTask>()
+
+        // Initially not ready
+        every { client.isReady } returns false
+
+        // Capture event listeners when they are registered
+        every { client.on(SplitEvent.SDK_READY_FROM_CACHE, capture(readySlot)) } answers {
+            // Simulate client becoming ready right after listener registration
+            every { client.isReady } returns true
+        }
+        every { client.on(SplitEvent.SDK_UPDATE, capture(updateSlot)) } answers { }
+        every { client.on(SplitEvent.SDK_READY_TIMED_OUT, capture(timeoutSlot)) } answers { }
+
+        val bridge = registry.register(client)
+
+        val job = async { withTimeout(2_000) { bridge.events.first() } }
+        runCurrent()
+
+        readySlot.captured.onPostExecution(client)
+
+        val event = job.await()
         assertEquals(OpenFeatureProviderEvents.ProviderReady, event)
     }
 
