@@ -5,6 +5,7 @@ import dev.openfeature.kotlin.sdk.EvaluationContext
 import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError
 import io.split.android.client.SplitClient
 import io.split.android.client.SplitFactory
+import io.split.openfeature.android.provider.EvaluationContextExt.withTrafficType
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.atomic.AtomicReference
@@ -42,7 +43,8 @@ internal class DefaultInitializerDelegate(
                 return
             }
 
-            val ctxToStore = current.defaultContext ?: initialContext
+            val ctxToStore = (current.defaultContext ?: initialContext)
+                ?.withTrafficType("user")
             val targetingKey = requireTargetingKey(ctxToStore)
 
             val (factory, client) = initializeSdkOrThrow(
@@ -110,7 +112,7 @@ internal class DefaultInitializerDelegate(
     }
 
     override fun shutdown() {
-        // For now, no-op. Will implement later.
+        stateRef.get().splitFactory?.destroy()
     }
 
     private fun requireTargetingKey(ctx: EvaluationContext?): String {

@@ -77,6 +77,19 @@ class SplitProviderTest : BaseMockkTest() {
         verify(exactly = 1) { initializer.shutdown() }
     }
 
+    @Test
+    fun `track delegates to trackingDelegate`() {
+        val trackingDelegate = mockk<DefaultTrackingDelegate>(relaxed = true)
+        val provider = SplitProvider(
+            config = testConfig(),
+            trackingDelegate = trackingDelegate
+        )
+
+        provider.track("event", null, null)
+
+        verify(exactly = 1) { trackingDelegate.track("event", null, null) }
+    }
+
     private fun getProvider(): SplitProvider = SplitProvider(config = testConfig())
 
     private fun testConfig(): SplitProvider.Config =
