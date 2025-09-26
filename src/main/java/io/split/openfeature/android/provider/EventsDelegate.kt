@@ -31,7 +31,10 @@ internal class DefaultEventsDelegate(
 /**
  * Bridge that registers SDK listeners once per SplitClient and exposes them as a hot Flow.
  */
-internal class SplitEventsBridge(private val client: SplitClient) {
+internal class SplitEventsBridge(
+    private val client: SplitClient,
+    private val mapping: EventsMapping,
+) {
     private val _events = MutableSharedFlow<OpenFeatureProviderEvents>(
         replay = 0,
         extraBufferCapacity = 64,
@@ -40,41 +43,37 @@ internal class SplitEventsBridge(private val client: SplitClient) {
     val events: Flow<OpenFeatureProviderEvents> = _events
 
     init {
-        // Emit current readiness if available
-        runCatching { if (client.isReady) _events.tryEmit(OpenFeatureProviderEvents.ProviderReady) }
-
-        val readyTask = object : SplitEventTask() {
-            override fun onPostExecution(splitClient: SplitClient?) {
-                _events.tryEmit(OpenFeatureProviderEvents.ProviderReady)
+        // Eagerly emit readiness if the client is already ready
+        runCatching {
+            val firstReady = mapping.readyEvents.firstOrNull()
+            val eventFactory = firstReady?.let { mapping.splitToProvider[it] }
+            if (client.isReady && eventFactory != null) {
+                _events.tryEmit(eventFactory())
             }
         }
 
-        val updateTask = object : SplitEventTask() {
-            override fun onPostExecution(splitClient: SplitClient?) {
-                _events.tryEmit(OpenFeatureProviderEvents.ProviderConfigurationChanged)
+        // Register a listener per mapped SplitEvent
+        mapping.splitToProvider.forEach { (splitEvent: SplitEvent, providerEventFactory: () -> OpenFeatureProviderEvents) ->
+            val task = object : SplitEventTask() {
+                override fun onPostExecution(splitClient: SplitClient?) {
+                    _events.tryEmit(providerEventFactory())
+                }
             }
+            client.on(splitEvent, task)
         }
-
-        val timeoutTask = object : SplitEventTask() {
-            override fun onPostExecution(splitClient: SplitClient?) {
-                _events.tryEmit(OpenFeatureProviderEvents.ProviderError(OpenFeatureError.ProviderNotReadyError()))
-            }
-        }
-
-        client.on(SplitEvent.SDK_READY, readyTask)
-        client.on(SplitEvent.SDK_UPDATE, updateTask)
-        client.on(SplitEvent.SDK_READY_TIMED_OUT, timeoutTask)
     }
 }
 
 /**
  * Registry to ensure a single SplitEventsBridge per SplitClient instance.
  */
-internal class SplitEventsRegistry {
+internal class SplitEventsRegistry(
+    private val mapping: EventsMapping = DefaultEventsMapping
+) {
     private val bridges = ConcurrentHashMap<SplitClient, SplitEventsBridge>()
 
     fun register(client: SplitClient): SplitEventsBridge =
-        bridges.getOrPutConcurrent(client) { SplitEventsBridge(client) }
+        bridges.getOrPutConcurrent(client) { SplitEventsBridge(client, mapping) }
 
     fun events(client: SplitClient): Flow<OpenFeatureProviderEvents> =
         register(client).events
