@@ -62,8 +62,7 @@ class SplitProvider internal constructor(
 
     override fun getDoubleEvaluation(
         key: String, defaultValue: Double, context: EvaluationContext?
-    ): ProviderEvaluation<Double> =
-        evaluatorDelegate.getDoubleEvaluation(key, defaultValue, context)
+    ): ProviderEvaluation<Double> = evaluatorDelegate.getDoubleEvaluation(key, defaultValue, context)
 
     override fun getIntegerEvaluation(
         key: String, defaultValue: Int, context: EvaluationContext?
@@ -87,6 +86,8 @@ class SplitProvider internal constructor(
     ) {
         trackingDelegate.track(trackingEventName, context, details)
     }
+
+    override fun shutdown() = initializer.shutdown()
 
     /**
      * Configuration holder for the provider.
