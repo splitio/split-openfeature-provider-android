@@ -33,6 +33,7 @@ internal class DefaultEventsDelegate(
 internal class SplitEventsBridge(
     private val client: SplitClient,
     private val mapping: EventsMapping,
+    private val isContextChange: Boolean = false,
 ) {
     private val _events = MutableSharedFlow<OpenFeatureProviderEvents>(
         replay = 1,
@@ -52,10 +53,16 @@ internal class SplitEventsBridge(
         }
 
         runCatching {
-            val firstReady = mapping.readyEvents.firstOrNull()
-            val eventFactory = firstReady?.let { mapping.splitToProvider[it] }
-            if (client.isReady && eventFactory != null) {
-                _events.tryEmit(eventFactory())
+            if (client.isReady) {
+                if (isContextChange) {
+                    _events.tryEmit(OpenFeatureProviderEvents.ProviderConfigurationChanged)
+                } else {
+                    val firstReady = mapping.readyEvents.firstOrNull()
+                    val eventFactory = firstReady?.let { mapping.splitToProvider[it] }
+                    if (eventFactory != null) {
+                        _events.tryEmit(eventFactory())
+                    }
+                }
             }
         }
     }
@@ -68,10 +75,23 @@ internal class SplitEventsRegistry(
     private val mapping: EventsMapping = DefaultEventsMapping
 ) {
     private val bridges = ConcurrentHashMap<SplitClient, SplitEventsBridge>()
+    private var hasInitialClient = false
 
     fun register(client: SplitClient): SplitEventsBridge =
-        bridges.getOrPutConcurrent(client) { SplitEventsBridge(client, mapping) }
+        bridges.getOrPutConcurrent(client) {
+            val isContextChange = hasInitialClient
+            hasInitialClient = true
+            SplitEventsBridge(client, mapping, isContextChange)
+        }
+
+    fun registerForContextChange(client: SplitClient): SplitEventsBridge {
+        // Always create a new bridge for context changes, don't cache it
+        return SplitEventsBridge(client, mapping, isContextChange = true)
+    }
 
     fun events(client: SplitClient): Flow<OpenFeatureProviderEvents> =
         register(client).events
+
+    fun eventsForContextChange(client: SplitClient): Flow<OpenFeatureProviderEvents> =
+        registerForContextChange(client).events
 }

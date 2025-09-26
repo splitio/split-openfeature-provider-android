@@ -14,9 +14,10 @@ internal data class EventsMapping(
 
 internal val DefaultEventsMapping: EventsMapping = EventsMapping(
     splitToProvider = mapOf(
-        SplitEvent.SDK_READY_FROM_CACHE to { OpenFeatureProviderEvents.ProviderReady },
+        SplitEvent.SDK_READY to { OpenFeatureProviderEvents.ProviderReady },
+        SplitEvent.SDK_READY_FROM_CACHE to { OpenFeatureProviderEvents.ProviderStale },
         SplitEvent.SDK_UPDATE to { OpenFeatureProviderEvents.ProviderConfigurationChanged },
         SplitEvent.SDK_READY_TIMED_OUT to { OpenFeatureProviderEvents.ProviderError(OpenFeatureError.ProviderNotReadyError()) },
     ),
-    readyEvents = setOf(SplitEvent.SDK_READY_FROM_CACHE)
+    readyEvents = setOf(SplitEvent.SDK_READY, SplitEvent.SDK_READY_FROM_CACHE)
 )
