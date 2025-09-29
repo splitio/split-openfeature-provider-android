@@ -2,10 +2,6 @@ package io.split.openfeature.android.provider
 
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * Atomically returns the existing value associated with [key], or stores and returns the value
- * produced by [defaultValue] if absent. Uses a synchronized block for broad Android compatibility.
- */
 internal inline fun <K, V : Any> ConcurrentHashMap<K, V>.getOrPutConcurrent(
     key: K,
     defaultValue: () -> V

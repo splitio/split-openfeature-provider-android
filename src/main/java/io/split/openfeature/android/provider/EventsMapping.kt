@@ -6,6 +6,8 @@ import io.split.android.client.events.SplitEvent
 
 /**
  * Defines how Split SDK events map to OpenFeature provider events, and which events indicate readiness.
+ *
+ * Here, readiness is defined as the SDK being ready to serve evaluations, STALE or not.
  */
 internal data class EventsMapping(
     val splitToProvider: Map<SplitEvent, () -> OpenFeatureProviderEvents>,

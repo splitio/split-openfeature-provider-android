@@ -84,14 +84,6 @@ internal class SplitEventsRegistry(
             SplitEventsBridge(client, mapping, isContextChange)
         }
 
-    fun registerForContextChange(client: SplitClient): SplitEventsBridge {
-        // Always create a new bridge for context changes, don't cache it
-        return SplitEventsBridge(client, mapping, isContextChange = true)
-    }
-
     fun events(client: SplitClient): Flow<OpenFeatureProviderEvents> =
         register(client).events
-
-    fun eventsForContextChange(client: SplitClient): Flow<OpenFeatureProviderEvents> =
-        registerForContextChange(client).events
 }
