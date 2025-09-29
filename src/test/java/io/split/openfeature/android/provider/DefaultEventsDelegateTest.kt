@@ -140,9 +140,9 @@ class DefaultEventsDelegateTest {
         stateRef.set(stateRef.get().copy(splitClient = clientA))
         val delegateA2 = DefaultEventsDelegate(stateRef, registry)
 
-        // For context change back to A, we need to use eventsForContextChange
-        val jobA2 = async { withTimeout(2_000) { registry.eventsForContextChange(clientA).first() } }
+        val jobA2 = async { withTimeout(2_000) { delegateA2.observe().first() } }
         runCurrent()
+        listenersA.readyTask.captured.onPostExecution(clientA)
         assertEquals(OpenFeatureProviderEvents.ProviderConfigurationChanged, jobA2.await())
     }
 

@@ -32,8 +32,9 @@ internal class DefaultEventsDelegate(
  */
 internal class SplitEventsBridge(
     private val client: SplitClient,
-    private val mapping: EventsMapping,
+    mapping: EventsMapping,
     private val isContextChange: Boolean = false,
+    private val registry: SplitEventsRegistry? = null,
 ) {
     private val _events = MutableSharedFlow<OpenFeatureProviderEvents>(
         replay = 1,
@@ -46,7 +47,12 @@ internal class SplitEventsBridge(
         mapping.splitToProvider.forEach { (splitEvent: SplitEvent, providerEventFactory: () -> OpenFeatureProviderEvents) ->
             val task = object : SplitEventTask() {
                 override fun onPostExecution(splitClient: SplitClient?) {
-                    _events.tryEmit(providerEventFactory())
+                    val event = providerEventFactory()
+                    _events.tryEmit(event)
+                    // Mark that we've emitted ProviderReady
+                    if (event == OpenFeatureProviderEvents.ProviderReady) {
+                        registry?.markProviderReadyEmitted()
+                    }
                 }
             }
             client.on(splitEvent, task)
@@ -55,13 +61,12 @@ internal class SplitEventsBridge(
         runCatching {
             if (client.isReady) {
                 if (isContextChange) {
+                    // Context changes always emit ProviderConfigurationChanged immediately
                     _events.tryEmit(OpenFeatureProviderEvents.ProviderConfigurationChanged)
-                } else {
-                    val firstReady = mapping.readyEvents.firstOrNull()
-                    val eventFactory = firstReady?.let { mapping.splitToProvider[it] }
-                    if (eventFactory != null) {
-                        _events.tryEmit(eventFactory())
-                    }
+                } else if (client.isReady) {
+                    // First client that is ready emits ProviderReady
+                    _events.tryEmit(OpenFeatureProviderEvents.ProviderReady)
+                    registry?.markProviderReadyEmitted()
                 }
             }
         }
@@ -75,15 +80,27 @@ internal class SplitEventsRegistry(
     private val mapping: EventsMapping = DefaultEventsMapping
 ) {
     private val bridges = ConcurrentHashMap<SplitClient, SplitEventsBridge>()
-    private var hasInitialClient = false
+    private var hasEmittedProviderReady = false
+    private var currentClient: SplitClient? = null
 
     fun register(client: SplitClient): SplitEventsBridge =
         bridges.getOrPutConcurrent(client) {
-            val isContextChange = hasInitialClient
-            hasInitialClient = true
-            SplitEventsBridge(client, mapping, isContextChange)
+            val isContextChange = hasEmittedProviderReady
+            SplitEventsBridge(client, mapping, isContextChange, this)
         }
 
-    fun events(client: SplitClient): Flow<OpenFeatureProviderEvents> =
-        register(client).events
+    fun markProviderReadyEmitted() {
+        hasEmittedProviderReady = true
+    }
+
+    fun events(client: SplitClient): Flow<OpenFeatureProviderEvents> {
+        // If switching to a different client after emitting ProviderReady,
+        // clear the existing bridge to force creation of a context-change bridge
+        val notFirstClient = currentClient != null
+        if (notFirstClient && currentClient != client && hasEmittedProviderReady) {
+            bridges.remove(client)
+        }
+        currentClient = client
+        return register(client).events
+    }
 }
