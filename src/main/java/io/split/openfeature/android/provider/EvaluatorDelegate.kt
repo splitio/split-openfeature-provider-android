@@ -13,6 +13,12 @@ import io.split.android.client.SplitClient
 import io.split.android.client.SplitResult
 import java.util.concurrent.atomic.AtomicReference
 
+/**
+ * OpenFeature spec-defined reason for flag evaluation.
+ * Using UNKNOWN as Split SDK does not provide sufficient information to determine the actual reason.
+ */
+private const val REASON_UNKNOWN = "UNKNOWN"
+
 
 internal interface EvaluatorDelegate {
 
@@ -103,10 +109,15 @@ internal class DefaultEvaluator(
                 ProviderEvaluation(
                     value = mapped,
                     variant = treatment,
+                    reason = REASON_UNKNOWN,
                     metadata = EvaluationMetadata.builder().putString("config", config).build()
                 )
             } else {
-                ProviderEvaluation(value = mapped, variant = treatment)
+                ProviderEvaluation(
+                    value = mapped,
+                    variant = treatment,
+                    reason = REASON_UNKNOWN
+                )
             }
         } catch (e: OpenFeatureError) {
             throw e
