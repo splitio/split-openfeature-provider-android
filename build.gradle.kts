@@ -1,8 +1,10 @@
+import okhttp3.internal.platform.android.AndroidLogHandler.publish
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    id("com.vanniktech.maven.publish") version "0.33.0"
-    id("signing")
+    alias(libs.plugins.mavenpublish)
+    alias(libs.plugins.signing)
 }
 
 android {
