@@ -8,9 +8,11 @@ import dev.openfeature.kotlin.sdk.ProviderEvaluation
 import dev.openfeature.kotlin.sdk.ProviderMetadata
 import dev.openfeature.kotlin.sdk.TrackingEventDetails
 import dev.openfeature.kotlin.sdk.Value
+import dev.openfeature.kotlin.sdk.events.OpenFeatureProviderEvents
 import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -22,14 +24,16 @@ class SplitProvider internal constructor(
     private val config: Config,
     private val state: AtomicReference<SplitProviderState> = AtomicReference(SplitProviderState()),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val eventsRegistry: SplitEventsRegistry = SplitEventsRegistry(),
     private val initializer: InitializerDelegate = DefaultInitializerDelegate(
         stateRef = state,
         config = config,
-        sdkManager = SplitSdkDelegate(dispatcher),
+        sdkManager = SplitSdkDelegate(dispatcher, eventsRegistry),
         defaultReadyTimeoutMs = DEFAULT_READY_TIMEOUT_MS
     ),
     private val evaluatorDelegate: EvaluatorDelegate = DefaultEvaluator(state),
     private val trackingDelegate: TrackingDelegate = DefaultTrackingDelegate(state),
+    private val eventsDelegate: EventsDelegate = DefaultEventsDelegate(state, eventsRegistry),
 ) : FeatureProvider {
 
     constructor(
@@ -62,7 +66,8 @@ class SplitProvider internal constructor(
 
     override fun getDoubleEvaluation(
         key: String, defaultValue: Double, context: EvaluationContext?
-    ): ProviderEvaluation<Double> = evaluatorDelegate.getDoubleEvaluation(key, defaultValue, context)
+    ): ProviderEvaluation<Double> =
+        evaluatorDelegate.getDoubleEvaluation(key, defaultValue, context)
 
     override fun getIntegerEvaluation(
         key: String, defaultValue: Int, context: EvaluationContext?
@@ -87,7 +92,9 @@ class SplitProvider internal constructor(
         trackingDelegate.track(trackingEventName, context, details)
     }
 
-    override fun shutdown() = initializer.shutdown()
+    override fun observe(): Flow<OpenFeatureProviderEvents> {
+        return eventsDelegate.observe()
+    }
 
     /**
      * Configuration holder for the provider.

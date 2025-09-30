@@ -5,10 +5,12 @@ import androidx.test.core.app.ApplicationProvider
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
+import io.split.android.client.SplitClient
 import io.split.android.client.SplitFactory
 import io.split.android.client.SplitFactoryBuilder
 import io.split.android.client.api.Key
 import io.split.android.client.events.SplitEvent
+import io.split.android.client.events.SplitEventTask
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
@@ -30,10 +32,10 @@ import kotlin.coroutines.cancellation.CancellationException
 class SplitSdkDelegateTest : BaseMockkTest() {
 
     private val testDispatcher = StandardTestDispatcher()
-    private val initializer = SplitSdkDelegate(testDispatcher)
+    private val initializer = SplitSdkDelegate(testDispatcher, SplitEventsRegistry())
 
     @Test
-    fun `getReadyClient completes on SDK_READY`() = runTest(testDispatcher) {
+    fun `getReadyClient completes on SDK_READY_FROM_CACHE`() = runTest(testDispatcher) {
         val factory = mockk<SplitFactory>()
         val client = TestHelperClient()
         every { factory.client(any() as Key) } returns client
@@ -41,12 +43,12 @@ class SplitSdkDelegateTest : BaseMockkTest() {
         val deferred = async { initializer.getReadyClient(factory, "key", timeoutMs = 5_000) }
         // This allows the SDK event listeners to be attached first
         runCurrent()
-        // Simulate SDK READY
-        client.fire(SplitEvent.SDK_READY)
+        // Simulate SDK READY FROM CACHE
+        client.fire(SplitEvent.SDK_READY_FROM_CACHE)
 
         val result = deferred.await()
         assertSame(client, result)
-        assertTrue(client.subscribed(SplitEvent.SDK_READY))
+        assertTrue(client.subscribed(SplitEvent.SDK_READY_FROM_CACHE))
     }
 
     @Test(expected = TimeoutCancellationException::class)
@@ -115,8 +117,8 @@ class SplitSdkDelegateTest : BaseMockkTest() {
 
             // This allows the SDK event listeners to be attached first
             runCurrent()
-            // Simulate SDK_READY
-            client.fire(SplitEvent.SDK_READY)
+            // Simulate SDK_READY_FROM_CACHE
+            client.fire(SplitEvent.SDK_READY_FROM_CACHE)
 
             val (builtFactory, builtClient) = deferred.await()
             assertSame(factory, builtFactory)
@@ -151,4 +153,25 @@ class SplitSdkDelegateTest : BaseMockkTest() {
             runCurrent()
             deferred.await()
         }
+
+    @Test
+    fun `client becomes ready after isReady check but before listener registration`() = runTest(testDispatcher) {
+        val factory = mockk<SplitFactory>()
+        val client = mockk<SplitClient>(relaxed = true)
+
+        every { client.isReady } returns false
+
+        every { client.on(any<SplitEvent>(), any<SplitEventTask>()) } answers {
+            every { client.isReady } returns true
+        }
+
+        every { factory.client(any() as Key) } returns client
+
+        val deferred = async { initializer.getReadyClient(factory, "key", timeoutMs = 5_000) }
+        runCurrent()
+
+        val result = deferred.await()
+
+        assertSame(client, result)
+    }
 }
