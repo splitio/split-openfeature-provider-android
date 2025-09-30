@@ -1,5 +1,3 @@
-import okhttp3.internal.platform.android.AndroidLogHandler.publish
-
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
