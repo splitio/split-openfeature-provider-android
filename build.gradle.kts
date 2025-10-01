@@ -73,12 +73,8 @@ val splitPOM = Action<MavenPom> {
     }
 
     scm {
-        connection.set(
-            "scm:git:git://github.com/splitio/split-openfeature-provider-android.git"
-        )
-        developerConnection.set(
-            "scm:git:ssh://github.com:splitio/split-openfeature-provider-android.git"
-        )
+        connection.set("scm:git:git://github.com/splitio/split-openfeature-provider-android.git")
+        developerConnection.set("scm:git:ssh://github.com:splitio/split-openfeature-provider-android.git")
         url.set("https://github.com/splitio/split-openfeature-provider-android")
     }
 }
