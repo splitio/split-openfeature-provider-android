@@ -50,7 +50,7 @@ class OpenFeatureSpecTest {
             .setExecutor(SynchronousExecutor())
             .build()
         WorkManagerTestInitHelper.initializeTestWorkManager(context, config)
-        
+
         mockWebServer = MockWebServer()
         setupMockServerDispatcher()
         mockWebServer.start()
@@ -70,9 +70,9 @@ class OpenFeatureSpecTest {
     fun `resolve boolean value`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("boolean-flag", "off", context)
-        
+
         assertEquals("on", evaluation.value)
     }
 
@@ -80,9 +80,9 @@ class OpenFeatureSpecTest {
     fun `resolve string value`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("string-flag", "bye", context)
-        
+
         assertEquals("greeting", evaluation.value)
     }
 
@@ -90,9 +90,9 @@ class OpenFeatureSpecTest {
     fun `resolve integer value`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("integer-flag", "one", context)
-        
+
         assertEquals("ten", evaluation.value)
     }
 
@@ -100,9 +100,9 @@ class OpenFeatureSpecTest {
     fun `resolve float value`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("float-flag", "point-one", context)
-        
+
         assertEquals("half", evaluation.value)
     }
 
@@ -110,10 +110,13 @@ class OpenFeatureSpecTest {
     fun `resolve object value`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("object-flag", "empty", context)
-        
-        assertEquals("template", evaluation.value)
+
+        assertEquals(
+            "{\"showImages\":true,\"title\":\"Check out these pics!\",\"imagesPerPage\":100}",
+            evaluation.value
+        )
     }
 
     // Reason field - zero values (we're not supporting reasons yet)
@@ -121,9 +124,9 @@ class OpenFeatureSpecTest {
     fun `resolve boolean zero value`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("boolean-zero-flag", "on", context)
-        
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -131,9 +134,9 @@ class OpenFeatureSpecTest {
     fun `resolve string zero value`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("string-zero-flag", "hi", context)
-        
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -141,9 +144,9 @@ class OpenFeatureSpecTest {
     fun `resolve integer zero value`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("integer-zero-flag", "one", context)
-        
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -151,9 +154,9 @@ class OpenFeatureSpecTest {
     fun `resolve float zero value`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("float-zero-flag", "point-one", context)
-        
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -161,9 +164,9 @@ class OpenFeatureSpecTest {
     fun `resolve object zero value`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("object-zero-flag", "template", context)
-        
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -175,9 +178,9 @@ class OpenFeatureSpecTest {
             targetingKey = "test-user",
             attributes = mapOf("email" to Value.String("ballmer@macrosoft.com"))
         )
-        
+
         val evaluation = provider.getStringEvaluation("boolean-targeted-zero-flag", "on", context)
-        
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -188,9 +191,9 @@ class OpenFeatureSpecTest {
             targetingKey = "test-user",
             attributes = mapOf("email" to Value.String("ballmer@macrosoft.com"))
         )
-        
+
         val evaluation = provider.getStringEvaluation("string-targeted-zero-flag", "hi", context)
-        
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -201,9 +204,9 @@ class OpenFeatureSpecTest {
             targetingKey = "test-user",
             attributes = mapOf("email" to Value.String("ballmer@macrosoft.com"))
         )
-        
+
         val evaluation = provider.getStringEvaluation("integer-targeted-zero-flag", "one", context)
-        
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -214,9 +217,10 @@ class OpenFeatureSpecTest {
             targetingKey = "test-user",
             attributes = mapOf("email" to Value.String("ballmer@macrosoft.com"))
         )
-        
-        val evaluation = provider.getStringEvaluation("float-targeted-zero-flag", "point-one", context)
-        
+
+        val evaluation =
+            provider.getStringEvaluation("float-targeted-zero-flag", "point-one", context)
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -227,84 +231,95 @@ class OpenFeatureSpecTest {
             targetingKey = "test-user",
             attributes = mapOf("email" to Value.String("ballmer@macrosoft.com"))
         )
-        
-        val evaluation = provider.getStringEvaluation("object-targeted-zero-flag", "template", context)
-        
+
+        val evaluation =
+            provider.getStringEvaluation("object-targeted-zero-flag", "template", context)
+
         assertEquals("zero", evaluation.value)
     }
 
     // DEFAULT reason when targeting doesn't match (we're not supporting reasons yet)
     @Test
-    fun `resolve boolean targeted zero value with non-matching context returns default`() = runBlocking {
-        val provider = createAndInitializeProvider("test-user")
-        val context = ImmutableContext(
-            targetingKey = "test-user",
-            attributes = mapOf("email" to Value.String("ballmer@none.com"))
-        )
-        
-        val evaluation = provider.getStringEvaluation("boolean-targeted-zero-flag", "on", context)
-        
-        assertEquals("zero", evaluation.value)
-    }
+    fun `resolve boolean targeted zero value with non-matching context returns default`() =
+        runBlocking {
+            val provider = createAndInitializeProvider("test-user")
+            val context = ImmutableContext(
+                targetingKey = "test-user",
+                attributes = mapOf("email" to Value.String("ballmer@none.com"))
+            )
+
+            val evaluation =
+                provider.getStringEvaluation("boolean-targeted-zero-flag", "on", context)
+
+            assertEquals("zero", evaluation.value)
+        }
 
     @Test
-    fun `resolve string targeted zero value with non-matching context returns default`() = runBlocking {
-        val provider = createAndInitializeProvider("test-user")
-        val context = ImmutableContext(
-            targetingKey = "test-user",
-            attributes = mapOf("email" to Value.String("ballmer@none.com"))
-        )
-        
-        val evaluation = provider.getStringEvaluation("string-targeted-zero-flag", "hi", context)
-        
-        assertEquals("zero", evaluation.value)
-    }
+    fun `resolve string targeted zero value with non-matching context returns default`() =
+        runBlocking {
+            val provider = createAndInitializeProvider("test-user")
+            val context = ImmutableContext(
+                targetingKey = "test-user",
+                attributes = mapOf("email" to Value.String("ballmer@none.com"))
+            )
+
+            val evaluation =
+                provider.getStringEvaluation("string-targeted-zero-flag", "hi", context)
+
+            assertEquals("zero", evaluation.value)
+        }
 
     @Test
-    fun `resolve integer targeted zero value with non-matching context returns default`() = runBlocking {
-        val provider = createAndInitializeProvider("test-user")
-        val context = ImmutableContext(
-            targetingKey = "test-user",
-            attributes = mapOf("email" to Value.String("ballmer@none.com"))
-        )
-        
-        val evaluation = provider.getStringEvaluation("integer-targeted-zero-flag", "one", context)
-        
-        assertEquals("zero", evaluation.value)
-    }
+    fun `resolve integer targeted zero value with non-matching context returns default`() =
+        runBlocking {
+            val provider = createAndInitializeProvider("test-user")
+            val context = ImmutableContext(
+                targetingKey = "test-user",
+                attributes = mapOf("email" to Value.String("ballmer@none.com"))
+            )
+
+            val evaluation =
+                provider.getStringEvaluation("integer-targeted-zero-flag", "one", context)
+
+            assertEquals("zero", evaluation.value)
+        }
 
     @Test
-    fun `resolve float targeted zero value with non-matching context returns default`() = runBlocking {
-        val provider = createAndInitializeProvider("test-user")
-        val context = ImmutableContext(
-            targetingKey = "test-user",
-            attributes = mapOf("email" to Value.String("ballmer@none.com"))
-        )
-        
-        val evaluation = provider.getStringEvaluation("float-targeted-zero-flag", "point-one", context)
-        
-        assertEquals("zero", evaluation.value)
-    }
+    fun `resolve float targeted zero value with non-matching context returns default`() =
+        runBlocking {
+            val provider = createAndInitializeProvider("test-user")
+            val context = ImmutableContext(
+                targetingKey = "test-user",
+                attributes = mapOf("email" to Value.String("ballmer@none.com"))
+            )
+
+            val evaluation =
+                provider.getStringEvaluation("float-targeted-zero-flag", "point-one", context)
+
+            assertEquals("zero", evaluation.value)
+        }
 
     @Test
-    fun `resolve object targeted zero value with non-matching context returns default`() = runBlocking {
-        val provider = createAndInitializeProvider("test-user")
-        val context = ImmutableContext(
-            targetingKey = "test-user",
-            attributes = mapOf("email" to Value.String("ballmer@none.com"))
-        )
-        
-        val evaluation = provider.getStringEvaluation("object-targeted-zero-flag", "template", context)
-        
-        assertEquals("zero", evaluation.value)
-    }
+    fun `resolve object targeted zero value with non-matching context returns default`() =
+        runBlocking {
+            val provider = createAndInitializeProvider("test-user")
+            val context = ImmutableContext(
+                targetingKey = "test-user",
+                attributes = mapOf("email" to Value.String("ballmer@none.com"))
+            )
+
+            val evaluation =
+                provider.getStringEvaluation("object-targeted-zero-flag", "template", context)
+
+            assertEquals("zero", evaluation.value)
+        }
 
     // FLAG_NOT_FOUND error code
     @Test
     fun `flag not found error for boolean throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         try {
             provider.getStringEvaluation("non-existent-flag", "control", context)
             fail("Should have thrown FlagNotFoundError")
@@ -317,7 +332,7 @@ class OpenFeatureSpecTest {
     fun `flag not found error for string throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         try {
             provider.getStringEvaluation("non-existent-flag", "bye", context)
             fail("Should have thrown FlagNotFoundError")
@@ -330,7 +345,7 @@ class OpenFeatureSpecTest {
     fun `flag not found error for integer throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         try {
             provider.getStringEvaluation("non-existent-flag", "one", context)
             fail("Should have thrown FlagNotFoundError")
@@ -343,7 +358,7 @@ class OpenFeatureSpecTest {
     fun `flag not found error for float throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         try {
             provider.getStringEvaluation("non-existent-flag", "point-one", context)
             fail("Should have thrown FlagNotFoundError")
@@ -356,7 +371,7 @@ class OpenFeatureSpecTest {
     fun `flag not found error for object throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         try {
             provider.getStringEvaluation("non-existent-flag", "empty", context)
             fail("Should have thrown FlagNotFoundError")
@@ -370,9 +385,9 @@ class OpenFeatureSpecTest {
     fun `requesting boolean flag as string returns treatment`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("boolean-flag", "control", context)
-        
+
         assertEquals("on", evaluation.value)
     }
 
@@ -380,9 +395,9 @@ class OpenFeatureSpecTest {
     fun `requesting string flag as boolean evaluates string treatment`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("string-flag", "control", context)
-        
+
         assertEquals("greeting", evaluation.value)
     }
 
@@ -391,9 +406,9 @@ class OpenFeatureSpecTest {
     fun `flag metadata in evaluation details`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("metadata-flag", "control", context)
-        
+
         // Verify the flag evaluates successfully
         assertNotEquals("control", evaluation.value)
         // TODO: Verify metadata fields when Split SDK provides metadata support
@@ -405,9 +420,9 @@ class OpenFeatureSpecTest {
     fun `empty evaluation context for boolean targeted flag returns default`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("boolean-targeted-zero-flag", "on", context)
-        
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -415,9 +430,9 @@ class OpenFeatureSpecTest {
     fun `empty evaluation context for string targeted flag returns default`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("string-targeted-zero-flag", "str", context)
-        
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -425,9 +440,9 @@ class OpenFeatureSpecTest {
     fun `empty evaluation context for integer targeted flag returns default`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         val evaluation = provider.getStringEvaluation("integer-targeted-zero-flag", "one", context)
-        
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -435,9 +450,10 @@ class OpenFeatureSpecTest {
     fun `empty evaluation context for float targeted flag returns default`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
-        val evaluation = provider.getStringEvaluation("float-targeted-zero-flag", "point-one", context)
-        
+
+        val evaluation =
+            provider.getStringEvaluation("float-targeted-zero-flag", "point-one", context)
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -445,9 +461,10 @@ class OpenFeatureSpecTest {
     fun `empty evaluation context for object targeted flag returns default`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
-        val evaluation = provider.getStringEvaluation("object-targeted-zero-flag", "template", context)
-        
+
+        val evaluation =
+            provider.getStringEvaluation("object-targeted-zero-flag", "template", context)
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -459,9 +476,9 @@ class OpenFeatureSpecTest {
             targetingKey = "test-user",
             attributes = mapOf("email" to Value.Null)
         )
-        
+
         val evaluation = provider.getStringEvaluation("boolean-targeted-zero-flag", "on", context)
-        
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -472,9 +489,9 @@ class OpenFeatureSpecTest {
             targetingKey = "test-user",
             attributes = mapOf("email" to Value.Null)
         )
-        
+
         val evaluation = provider.getStringEvaluation("string-targeted-zero-flag", "str", context)
-        
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -485,9 +502,9 @@ class OpenFeatureSpecTest {
             targetingKey = "test-user",
             attributes = mapOf("email" to Value.Null)
         )
-        
+
         val evaluation = provider.getStringEvaluation("integer-targeted-zero-flag", "one", context)
-        
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -498,9 +515,10 @@ class OpenFeatureSpecTest {
             targetingKey = "test-user",
             attributes = mapOf("email" to Value.Null)
         )
-        
-        val evaluation = provider.getStringEvaluation("float-targeted-zero-flag", "point-one", context)
-        
+
+        val evaluation =
+            provider.getStringEvaluation("float-targeted-zero-flag", "point-one", context)
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -511,9 +529,10 @@ class OpenFeatureSpecTest {
             targetingKey = "test-user",
             attributes = mapOf("email" to Value.Null)
         )
-        
-        val evaluation = provider.getStringEvaluation("object-targeted-zero-flag", "template", context)
-        
+
+        val evaluation =
+            provider.getStringEvaluation("object-targeted-zero-flag", "template", context)
+
         assertEquals("zero", evaluation.value)
     }
 
@@ -522,7 +541,7 @@ class OpenFeatureSpecTest {
     fun `disabled boolean flag throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         try {
             provider.getStringEvaluation("boolean-disabled-flag", "control", context)
             fail("Should have thrown FlagNotFoundError")
@@ -535,7 +554,7 @@ class OpenFeatureSpecTest {
     fun `disabled string flag throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         try {
             provider.getStringEvaluation("string-disabled-flag", "bye", context)
             fail("Should have thrown FlagNotFoundError")
@@ -548,7 +567,7 @@ class OpenFeatureSpecTest {
     fun `disabled integer flag throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         try {
             provider.getStringEvaluation("integer-disabled-flag", "one", context)
             fail("Should have thrown FlagNotFoundError")
@@ -561,7 +580,7 @@ class OpenFeatureSpecTest {
     fun `disabled float flag throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         try {
             provider.getStringEvaluation("float-disabled-flag", "point-one", context)
             fail("Should have thrown FlagNotFoundError")
@@ -574,7 +593,7 @@ class OpenFeatureSpecTest {
     fun `disabled object flag throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         try {
             provider.getStringEvaluation("object-disabled-flag", "empty", context)
             fail("Should have thrown FlagNotFoundError")
@@ -588,7 +607,7 @@ class OpenFeatureSpecTest {
     fun `provider not ready error for boolean evaluation`() = runBlocking {
         val provider = createUninitializedProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         try {
             provider.getStringEvaluation("boolean-flag", "control", context)
             fail("Should have thrown ProviderNotReadyError")
@@ -601,7 +620,7 @@ class OpenFeatureSpecTest {
     fun `provider not ready error for string evaluation`() = runBlocking {
         val provider = createUninitializedProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         try {
             provider.getStringEvaluation("string-flag", "bye", context)
             fail("Should have thrown ProviderNotReadyError")
@@ -614,7 +633,7 @@ class OpenFeatureSpecTest {
     fun `provider not ready error for integer evaluation`() = runBlocking {
         val provider = createUninitializedProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         try {
             provider.getStringEvaluation("integer-flag", "one", context)
             fail("Should have thrown ProviderNotReadyError")
@@ -627,7 +646,7 @@ class OpenFeatureSpecTest {
     fun `provider not ready error for float evaluation`() = runBlocking {
         val provider = createUninitializedProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         try {
             provider.getStringEvaluation("float-flag", "point-one", context)
             fail("Should have thrown ProviderNotReadyError")
@@ -640,7 +659,7 @@ class OpenFeatureSpecTest {
     fun `provider not ready error for object evaluation`() = runBlocking {
         val provider = createUninitializedProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         try {
             provider.getStringEvaluation("object-flag", "empty", context)
             fail("Should have thrown ProviderNotReadyError")
@@ -654,7 +673,7 @@ class OpenFeatureSpecTest {
     fun `provider fatal state for boolean evaluation`() = runBlocking {
         val provider = createUninitializedProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
-        
+
         // Uninitialized provider should throw ProviderNotReadyError on evaluation
         try {
             provider.getStringEvaluation("boolean-flag", "control", context)
@@ -664,13 +683,204 @@ class OpenFeatureSpecTest {
         }
     }
 
+    // Typed Evaluation Methods - Testing each provider method directly
+    @Test
+    fun `getBooleanEvaluation returns true for 'on' treatment`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+
+        val evaluation = provider.getBooleanEvaluation("boolean-flag", false, context)
+
+        assertTrue(evaluation.value)
+        assertEquals("on", evaluation.variant)
+    }
+
+    @Test
+    fun `getBooleanEvaluation throws ParseError for non-boolean treatment like zero`() =
+        runBlocking {
+            val provider = createAndInitializeProvider("test-user")
+            val context = ImmutableContext(targetingKey = "test-user")
+
+            try {
+                // boolean-zero-flag returns "zero" which is not a valid boolean
+                provider.getBooleanEvaluation("boolean-zero-flag", true, context)
+                fail("Should have thrown ParseError")
+            } catch (e: OpenFeatureError.ParseError) {
+                // Expected - "zero" is not a valid boolean value
+            }
+        }
+
+    @Test
+    fun `getBooleanEvaluation throws ParseError for non-boolean treatment`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+
+        try {
+            // string-flag returns "greeting" which is not a valid boolean
+            provider.getBooleanEvaluation("string-flag", false, context)
+            fail("Should have thrown ParseError")
+        } catch (e: OpenFeatureError.ParseError) {
+            // Expected
+        }
+    }
+
+    @Test
+    fun `getIntegerEvaluation throws ParseError for word-based treatment`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+
+        try {
+            // integer-flag returns "ten" which cannot be parsed as integer
+            provider.getIntegerEvaluation("integer-flag", 1, context)
+            fail("Should have thrown ParseError")
+        } catch (e: OpenFeatureError.ParseError) {
+            // Expected - "ten" is not parseable as integer
+        }
+    }
+
+    @Test
+    fun `getIntegerEvaluation throws ParseError for zero treatment`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+
+        try {
+            // integer-zero-flag returns "zero" which cannot be parsed as integer
+            provider.getIntegerEvaluation("integer-zero-flag", 99, context)
+            fail("Should have thrown ParseError")
+        } catch (e: OpenFeatureError.ParseError) {
+            // Expected - "zero" is not parseable as integer
+        }
+    }
+
+    @Test
+    fun `getIntegerEvaluation throws ParseError for non-numeric treatment`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+
+        try {
+            // string-flag returns "greeting" which is not a valid integer
+            provider.getIntegerEvaluation("string-flag", 1, context)
+            fail("Should have thrown ParseError")
+        } catch (e: OpenFeatureError.ParseError) {
+            // Expected
+        }
+    }
+
+    @Test
+    fun `getDoubleEvaluation throws ParseError for word-based treatment`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+
+        try {
+            // float-flag returns "half" which cannot be parsed as double
+            provider.getDoubleEvaluation("float-flag", 0.1, context)
+            fail("Should have thrown ParseError")
+        } catch (e: OpenFeatureError.ParseError) {
+            // Expected - "half" is not parseable as double
+        }
+    }
+
+    @Test
+    fun `getDoubleEvaluation throws ParseError for zero treatment`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+
+        try {
+            // float-zero-flag returns "zero" which cannot be parsed as double
+            provider.getDoubleEvaluation("float-zero-flag", 99.9, context)
+            fail("Should have thrown ParseError")
+        } catch (e: OpenFeatureError.ParseError) {
+            // Expected - "zero" is not parseable as double
+        }
+    }
+
+    @Test
+    fun `getDoubleEvaluation throws ParseError for non-numeric treatment`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+
+        try {
+            // string-flag returns "greeting" which is not a valid double
+            provider.getDoubleEvaluation("string-flag", 0.1, context)
+            fail("Should have thrown ParseError")
+        } catch (e: OpenFeatureError.ParseError) {
+            // Expected
+        }
+    }
+
+    @Test
+    fun `getObjectEvaluation returns parsed JSON object`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+
+        val evaluation = provider.getObjectEvaluation(
+            "object-flag",
+            Value.Structure(mapOf()),
+            context
+        )
+
+        // Verify we get a Structure value (parsed JSON)
+        assertTrue(
+            "Expected Value.Structure but got ${evaluation.value::class}",
+            evaluation.value is Value.Structure
+        )
+    }
+
+    @Test
+    fun `getObjectEvaluation returns Value Null for non-JSON string treatment`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+
+        // string-flag returns "greeting" which is NOT valid JSON (needs quotes)
+        val evaluation =
+            provider.getObjectEvaluation("string-flag", Value.Structure(mapOf()), context)
+
+        // Invalid JSON returns Value.Null (parser catches exception)
+        assertTrue(
+            "Expected Value.Null but got ${evaluation.value::class}",
+            evaluation.value is Value.Null
+        )
+    }
+
+    // Config/Metadata Verification Tests
+    @Test
+    fun `evaluation returns config metadata when flag has configuration`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+
+        // metadata-flag should have config
+        val evaluation = provider.getStringEvaluation("metadata-flag", "control", context)
+
+        assertNotNull("Evaluation should have metadata", evaluation.metadata)
+        // TODO: Verify actual metadata content when we know the flag config structure
+    }
+
+    @Test
+    fun `evaluation without config has no metadata`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+
+        // Most flags don't have config, so they should have null metadata
+        val evaluation = provider.getStringEvaluation("boolean-flag", "control", context)
+
+        // Metadata should be null or empty when there's no config
+        if (evaluation.metadata != null) {
+            // If metadata exists, verify it doesn't have config key or config is empty
+            val configValue = evaluation.metadata.getString("config")
+            assertTrue(
+                "Config should be null or empty when flag has no configuration",
+                configValue == null || configValue.isEmpty()
+            )
+        }
+    }
+
     // Test Helper Methods
     /**
      * Creates and initializes a provider that's ready for evaluation tests
      */
     private suspend fun createAndInitializeProvider(userKey: String): SplitProvider {
         splitFactory = createReadySplitFactory(userKey)
-        
+
         // Wait for the SDK to be ready BEFORE creating the provider
         val client = splitFactory.client(Key(userKey))
         withTimeout(15000) {
@@ -680,7 +890,7 @@ class OpenFeatureSpecTest {
                 ready = client.isReady
             }
         }
-        
+
         val provider = createTestSplitProvider(
             splitFactory = splitFactory,
             config = SplitProvider.Config(
@@ -702,7 +912,7 @@ class OpenFeatureSpecTest {
      */
     private fun createUninitializedProvider(userKey: String): SplitProvider {
         splitFactory = createReadySplitFactory(userKey)
-        
+
         // Create provider but DON'T initialize it
         return createTestSplitProvider(
             splitFactory = splitFactory,
@@ -718,7 +928,7 @@ class OpenFeatureSpecTest {
      */
     private fun createReadySplitFactory(userKey: String): SplitFactory {
         val baseUrl = mockWebServer.url("/").toString()
-        
+
         val endpoints = ServiceEndpoints.builder()
             .apiEndpoint(baseUrl)
             .eventsEndpoint(baseUrl)
@@ -751,6 +961,7 @@ class OpenFeatureSpecTest {
                             .setResponseCode(200)
                             .setBody("""{"ms":{"k":[],"cn":null},"ls":{"k":[],"cn":1702507130121}}""")
                     }
+
                     request.path?.contains("/splitChanges") == true -> {
                         val since = request.requestUrl?.queryParameter("since") ?: "-1"
                         if (since == "-1") {
@@ -763,10 +974,16 @@ class OpenFeatureSpecTest {
                                 .setBody("""{"ff":{"splits":[],"since":1506703262916,"till":1506703262916},"rbs":{"d":[],"s":1506703262916,"t":1506703262916}}""")
                         }
                     }
+
                     request.path?.contains("/events") == true -> MockResponse().setResponseCode(200)
-                    request.path?.contains("/testImpressions") == true -> MockResponse().setResponseCode(200)
+                    request.path?.contains("/testImpressions") == true -> MockResponse().setResponseCode(
+                        200
+                    )
+
                     request.path?.contains("/keys/cs") == true -> MockResponse().setResponseCode(200)
-                    request.path?.contains("/v2/auth") == true -> MockResponse().setResponseCode(200).setBody("""{"pushEnabled":false}""")
+                    request.path?.contains("/v2/auth") == true -> MockResponse().setResponseCode(200)
+                        .setBody("""{"pushEnabled":false}""")
+
                     request.path?.contains("/metrics") == true -> MockResponse().setResponseCode(200)
                     else -> MockResponse().setResponseCode(200).setBody("{}")
                 }

@@ -992,11 +992,7 @@
             },
             "partitions": [
               {
-                "treatment": "empty",
-                "size": 0
-              },
-              {
-                "treatment": "template",
+                "treatment": "{\"showImages\":true,\"title\":\"Check out these pics!\",\"imagesPerPage\":100}",
                 "size": 100
               }
             ],
@@ -1006,7 +1002,7 @@
         "configurations": {},
         "sets": [],
         "impressionsDisabled": false,
-        "defaultTreatment": "template"
+        "defaultTreatment": "{\"showImages\":true,\"title\":\"Check out these pics!\",\"imagesPerPage\":100}"
       },
       {
         "changeNumber": 10,
