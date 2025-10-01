@@ -29,13 +29,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
+    kotlinOptions { jvmTarget = "11" }
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.split.sdk)
     implementation(libs.openfeature.sdk)
@@ -47,6 +44,8 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.kotlin.test.junit)
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.work.testing)
     androidTestImplementation(libs.androidx.junit)
 }
 
@@ -74,8 +73,12 @@ val splitPOM = Action<MavenPom> {
     }
 
     scm {
-        connection.set("scm:git:git://github.com/splitio/split-openfeature-provider-android.git")
-        developerConnection.set("scm:git:ssh://github.com:splitio/split-openfeature-provider-android.git")
+        connection.set(
+            "scm:git:git://github.com/splitio/split-openfeature-provider-android.git"
+        )
+        developerConnection.set(
+            "scm:git:ssh://github.com:splitio/split-openfeature-provider-android.git"
+        )
         url.set("https://github.com/splitio/split-openfeature-provider-android")
     }
 }
