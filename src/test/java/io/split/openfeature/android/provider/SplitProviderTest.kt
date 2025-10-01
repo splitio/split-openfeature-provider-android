@@ -87,10 +87,13 @@ class SplitProviderTest : BaseMockkTest() {
     }
 
     @Test
-    fun `visible for testing constructor accepts SplitFactory`() {
+    fun `test helper creates provider with injected SplitFactory`() {
         val mockFactory = mockk<SplitFactory>(relaxed = true)
 
-        val provider = SplitProvider(splitFactory = mockFactory, config = testConfig())
+        val provider = createTestSplitProvider(
+            splitFactory = mockFactory,
+            config = testConfig()
+        )
 
         assertTrue(provider is FeatureProvider)
         assertEquals("Split", provider.metadata.name)
