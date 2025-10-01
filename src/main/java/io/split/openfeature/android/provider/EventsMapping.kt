@@ -21,5 +21,5 @@ internal val DefaultEventsMapping: EventsMapping = EventsMapping(
         SplitEvent.SDK_UPDATE to { OpenFeatureProviderEvents.ProviderConfigurationChanged },
         SplitEvent.SDK_READY_TIMED_OUT to { OpenFeatureProviderEvents.ProviderError(OpenFeatureError.ProviderNotReadyError()) },
     ),
-    readyEvents = setOf(SplitEvent.SDK_READY, SplitEvent.SDK_READY_FROM_CACHE)
+    readyEvents = setOf(SplitEvent.SDK_READY, SplitEvent.SDK_READY_FROM_CACHE, SplitEvent.SDK_READY_TIMED_OUT)
 )

@@ -28,7 +28,6 @@ internal class DefaultInitializerDelegate(
     private val stateRef: AtomicReference<SplitProviderState>,
     private val config: SplitProvider.Config,
     private val sdkManager: SdkDelegate,
-    private val defaultReadyTimeoutMs: Long,
 ) : InitializerDelegate {
     private val initMutex = Mutex()
 
@@ -134,7 +133,7 @@ internal class DefaultInitializerDelegate(
                 appContext = appContext,
                 sdkKey = sdkKey,
                 targetingKey = targetingKey,
-                timeoutMs = defaultReadyTimeoutMs
+                timeoutMs = config.timeoutMs
             )
         }
     }
@@ -147,7 +146,7 @@ internal class DefaultInitializerDelegate(
             sdkManager.getReadyClient(
                 factory = factory,
                 targetingKey = targetingKey,
-                timeoutMs = defaultReadyTimeoutMs
+                timeoutMs = config.timeoutMs
             )
         }
     }

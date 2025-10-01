@@ -34,7 +34,6 @@ fun createTestSplitProvider(
                 eventsRegistry = sharedEventsRegistry,
                 injectedFactory = splitFactory
             ),
-            defaultReadyTimeoutMs = 10_000L
         ),
         evaluatorDelegate = DefaultEvaluator(sharedState),
         trackingDelegate = DefaultTrackingDelegate(sharedState),

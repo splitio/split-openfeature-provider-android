@@ -357,13 +357,11 @@ class InitializerDelegateTest : BaseMockkTest() {
         stateRef: AtomicReference<SplitProviderState> = AtomicReference(SplitProviderState()),
         config: SplitProvider.Config = testConfig(),
         sdkManager: SdkDelegate = mockk(),
-        defaultReadyTimeoutMs: Long = 10_000L,
     ): DefaultInitializerDelegate {
         return DefaultInitializerDelegate(
             stateRef = stateRef,
             config = config,
             sdkManager = sdkManager,
-            defaultReadyTimeoutMs = defaultReadyTimeoutMs
         )
     }
 
