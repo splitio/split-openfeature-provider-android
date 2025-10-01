@@ -6,7 +6,9 @@ import androidx.work.testing.SynchronousExecutor
 import androidx.work.testing.WorkManagerTestInitHelper
 import dev.openfeature.kotlin.sdk.Client
 import dev.openfeature.kotlin.sdk.ImmutableContext
+import dev.openfeature.kotlin.sdk.ImmutableStructure
 import dev.openfeature.kotlin.sdk.OpenFeatureAPI
+import dev.openfeature.kotlin.sdk.TrackingEventDetails
 import dev.openfeature.kotlin.sdk.Value
 import dev.openfeature.kotlin.sdk.events.OpenFeatureProviderEvents
 import io.split.android.client.ServiceEndpoints
@@ -17,8 +19,10 @@ import io.split.android.client.api.Key
 import io.split.android.client.utils.logger.LogPrinter
 import io.split.android.client.utils.logger.Logger
 import io.split.android.client.utils.logger.SplitLogLevel
+import io.split.openfeature.android.provider.EvaluationContextExt.withTrafficType
 import io.split.openfeature.android.provider.SplitProvider
 import io.split.openfeature.android.provider.createTestSplitProvider
+import io.split.openfeature.android.provider.verifyEventSent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -55,6 +59,7 @@ class OpenFeatureClientIntegrationTest {
     private lateinit var mockWebServer: MockWebServer
     private lateinit var splitFactory: SplitFactory
     private lateinit var openFeatureClient: Client
+    private val recordedRequests = mutableListOf<RecordedRequest>()
 
     @Before
     fun setUp() {
@@ -66,21 +71,27 @@ class OpenFeatureClientIntegrationTest {
             .build()
         WorkManagerTestInitHelper.initializeTestWorkManager(context, config)
 
+        recordedRequests.clear()
         mockWebServer = MockWebServer()
         setupMockServerDispatcher()
         mockWebServer.start()
         Logger.instance().setLevel(SplitLogLevel.VERBOSE)
-        Logger.instance().setPrinter(object: LogPrinter {
+        Logger.instance().setPrinter(object : LogPrinter {
             override fun v(tag: String?, msg: String?, tr: Throwable?) =
                 println("$tag - v: $msg")
+
             override fun d(tag: String?, msg: String?, tr: Throwable?) =
                 println("$tag - d: $msg")
+
             override fun i(tag: String?, msg: String?, tr: Throwable?) =
                 println("$tag - i: $msg")
+
             override fun w(tag: String?, msg: String?, tr: Throwable?) =
                 println("$tag - w: $msg")
+
             override fun e(tag: String?, msg: String?, tr: Throwable?) =
                 println("$tag - e: $msg")
+
             override fun wtf(tag: String?, msg: String?, tr: Throwable?) =
                 println("$tag - wtf: $msg")
         })
@@ -141,8 +152,10 @@ class OpenFeatureClientIntegrationTest {
 
         val result = client.getObjectValue("object-flag", Value.Null)
 
-        assertTrue("Expected Value.Structure but got ${result::class}",
-                   result is Value.Structure)
+        assertTrue(
+            "Expected Value.Structure but got ${result::class}",
+            result is Value.Structure
+        )
     }
 
     // Error Handling - Client Returns Default Values
@@ -310,8 +323,10 @@ class OpenFeatureClientIntegrationTest {
 
         // Parser returns Value.Null for invalid JSON, but that's still a valid Value
         // so client won't use default - it will return Value.Null
-        assertTrue("Expected Value.Null but got ${result::class}",
-                   result is Value.Null)
+        assertTrue(
+            "Expected Value.Null but got ${result::class}",
+            result is Value.Null
+        )
     }
 
     // ========================================================================
@@ -358,8 +373,10 @@ class OpenFeatureClientIntegrationTest {
         eventJob.cancel()
 
         // Verify we got ProviderReady event (from replay)
-        assertTrue("Expected ProviderReady event from replay, got: $events",
-                   events.contains(OpenFeatureProviderEvents.ProviderReady))
+        assertTrue(
+            "Expected ProviderReady event from replay, got: $events",
+            events.contains(OpenFeatureProviderEvents.ProviderReady)
+        )
     }
 
     @Test
@@ -405,7 +422,10 @@ class OpenFeatureClientIntegrationTest {
         kotlinx.coroutines.delay(500)
         eventJob.cancel()
 
-        assertTrue("Late subscriber should receive ProviderReady event due to replay=1", receivedReady)
+        assertTrue(
+            "Late subscriber should receive ProviderReady event due to replay=1",
+            receivedReady
+        )
     }
 
     // Metadata Tests
@@ -418,6 +438,111 @@ class OpenFeatureClientIntegrationTest {
         assertNotEquals("default", details.value)
         // Metadata is available in evaluation details
         assertNotNull(details)
+    }
+
+    // Tracking Tests
+    @Test
+    fun `client track sends event to events endpoint`() = runBlocking {
+        val client = createAndInitializeClientWithTrafficType("test-user", "user")
+
+        recordedRequests.clear()
+
+        client.track("button_clicked")
+
+        delay(1000)
+
+        verifyEventSent(
+            recordedRequests = recordedRequests,
+            eventName = "button_clicked",
+            expectedValue = null,
+            expectedProperties = null,
+            userKey = "test-user",
+            trafficType = "user"
+        )
+    }
+
+    @Test
+    fun `client track with value sends event to events endpoint`() = runBlocking {
+        val client = createAndInitializeClientWithTrafficType("test-user", "user")
+
+        recordedRequests.clear()
+
+        val details = TrackingEventDetails(value = 42.0)
+        client.track("purchase_completed", details)
+
+        delay(1000)
+
+        verifyEventSent(
+            recordedRequests = recordedRequests,
+            eventName = "purchase_completed",
+            expectedValue = 42.0,
+            expectedProperties = null,
+            userKey = "test-user",
+            trafficType = "user"
+        )
+    }
+
+    @Test
+    fun `client track with properties sends event to events endpoint`() = runBlocking {
+        val client = createAndInitializeClientWithTrafficType("test-user", "user")
+
+        recordedRequests.clear()
+
+        val details = TrackingEventDetails(
+            structure = ImmutableStructure(
+                mapOf(
+                    "product_id" to Value.String("12345"),
+                    "category" to Value.String("electronics")
+                )
+            )
+        )
+        client.track("product_viewed", details)
+
+        delay(1000)
+
+        verifyEventSent(
+            recordedRequests = recordedRequests,
+            eventName = "product_viewed",
+            expectedValue = null,
+            expectedProperties = mapOf(
+                "product_id" to "12345",
+                "category" to "electronics"
+            ),
+            userKey = "test-user",
+            trafficType = "user"
+        )
+    }
+
+    @Test
+    fun `client track with value and properties sends event to events endpoint`() = runBlocking {
+        val client = createAndInitializeClientWithTrafficType("test-user", "user")
+
+        recordedRequests.clear()
+
+        val details = TrackingEventDetails(
+            value = 99.99,
+            structure = ImmutableStructure(
+                mapOf(
+                    "currency" to Value.String("USD"),
+                    "discount_applied" to Value.Boolean(true)
+                )
+            )
+        )
+        client.track("order_total", details)
+
+        delay(1000)
+
+        verifyEventSent(
+            recordedRequests = recordedRequests,
+            eventName = "order_total",
+            expectedValue = 99.99,
+            expectedProperties = mapOf(
+                "currency" to "USD",
+                "discount_applied" to true
+            ),
+            userKey = "test-user",
+            trafficType = "user"
+        )
     }
 
     private suspend fun createAndInitializeClient(userKey: String): Client {
@@ -442,8 +567,46 @@ class OpenFeatureClientIntegrationTest {
             )
         )
 
-        // Set provider with context - OpenFeature SDK handles initialization
+        // Set provider with context
         val context = ImmutableContext(targetingKey = userKey)
+        OpenFeatureAPI.setProvider(provider, initialContext = context)
+
+        // Wait for provider initialization to complete
+        delay(500)
+
+        // Get OpenFeature client
+        openFeatureClient = OpenFeatureAPI.getClient()
+
+        return openFeatureClient
+    }
+
+    private suspend fun createAndInitializeClientWithTrafficType(
+        userKey: String,
+        trafficType: String
+    ): Client {
+        splitFactory = createReadySplitFactory(userKey)
+
+        // Wait for Split SDK to be ready
+        val splitClient = splitFactory.client(Key(userKey))
+        withTimeout(15000) {
+            var ready = false
+            while (!ready) {
+                delay(100)
+                ready = splitClient.isReady
+            }
+        }
+
+        // Create Split provider
+        val provider = createTestSplitProvider(
+            splitFactory = splitFactory,
+            config = SplitProvider.Config(
+                applicationContext = ApplicationProvider.getApplicationContext(),
+                sdkKey = "test-api-key"
+            )
+        )
+
+        // Set provider with context including trafficType - OpenFeature SDK handles initialization
+        val context = ImmutableContext(targetingKey = userKey).withTrafficType(trafficType)
         OpenFeatureAPI.setProvider(provider, initialContext = context)
 
         // Wait for provider initialization to complete
@@ -470,6 +633,8 @@ class OpenFeatureClientIntegrationTest {
             .featuresRefreshRate(999999)
             .segmentsRefreshRate(999999)
             .impressionsRefreshRate(999999)
+            .eventsQueueSize(1)
+            .eventFlushInterval(1)
             .logLevel(SplitLogLevel.VERBOSE)
             .build()
 
@@ -484,12 +649,16 @@ class OpenFeatureClientIntegrationTest {
     private fun setupMockServerDispatcher() {
         val dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
+                // Record all requests for verification in tests
+                recordedRequests.add(request)
+
                 return when {
                     request.path?.contains("/memberships") == true -> {
                         MockResponse()
                             .setResponseCode(200)
                             .setBody("""{"ms":{"k":[],"cn":null},"ls":{"k":[],"cn":1702507130121}}""")
                     }
+
                     request.path?.contains("/splitChanges") == true -> {
                         val since = request.requestUrl?.queryParameter("since") ?: "-1"
                         if (since == "-1") {
@@ -502,11 +671,16 @@ class OpenFeatureClientIntegrationTest {
                                 .setBody("""{"ff":{"splits":[],"since":1506703262916,"till":1506703262916},"rbs":{"d":[],"s":1506703262916,"t":1506703262916}}""")
                         }
                     }
+
                     request.path?.contains("/events") == true -> MockResponse().setResponseCode(200)
-                    request.path?.contains("/testImpressions") == true -> MockResponse().setResponseCode(200)
+                    request.path?.contains("/testImpressions") == true -> MockResponse().setResponseCode(
+                        200
+                    )
+
                     request.path?.contains("/keys/cs") == true -> MockResponse().setResponseCode(200)
                     request.path?.contains("/v2/auth") == true -> MockResponse().setResponseCode(200)
                         .setBody("""{"pushEnabled":false}""")
+
                     request.path?.contains("/metrics") == true -> MockResponse().setResponseCode(200)
                     else -> MockResponse().setResponseCode(200).setBody("{}")
                 }

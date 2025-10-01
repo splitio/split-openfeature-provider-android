@@ -5,6 +5,8 @@ import androidx.work.Configuration
 import androidx.work.testing.SynchronousExecutor
 import androidx.work.testing.WorkManagerTestInitHelper
 import dev.openfeature.kotlin.sdk.ImmutableContext
+import dev.openfeature.kotlin.sdk.ImmutableStructure
+import dev.openfeature.kotlin.sdk.TrackingEventDetails
 import dev.openfeature.kotlin.sdk.Value
 import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError
 import io.split.android.client.ServiceEndpoints
@@ -14,8 +16,10 @@ import io.split.android.client.SplitFactoryBuilder
 import io.split.android.client.api.Key
 import io.split.android.client.utils.logger.Logger
 import io.split.android.client.utils.logger.SplitLogLevel
+import io.split.openfeature.android.provider.EvaluationContextExt.withTrafficType
 import io.split.openfeature.android.provider.SplitProvider
 import io.split.openfeature.android.provider.createTestSplitProvider
+import io.split.openfeature.android.provider.verifyEventSent
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import okhttp3.mockwebserver.Dispatcher
@@ -40,6 +44,7 @@ class OpenFeatureSpecTest {
 
     private lateinit var mockWebServer: MockWebServer
     private lateinit var splitFactory: SplitFactory
+    private val recordedRequests = mutableListOf<RecordedRequest>()
 
     @Before
     fun setUp() {
@@ -51,6 +56,7 @@ class OpenFeatureSpecTest {
             .build()
         WorkManagerTestInitHelper.initializeTestWorkManager(context, config)
 
+        recordedRequests.clear()
         mockWebServer = MockWebServer()
         setupMockServerDispatcher()
         mockWebServer.start()
@@ -831,6 +837,115 @@ class OpenFeatureSpecTest {
         }
     }
 
+    // Tracking Tests
+    @Test
+    fun `track sends event to events endpoint`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user").withTrafficType("user")
+
+        recordedRequests.clear()
+
+        provider.track("button_clicked", context, null)
+
+        kotlinx.coroutines.delay(1000)
+
+        verifyEventSent(
+            recordedRequests = recordedRequests,
+            eventName = "button_clicked",
+            expectedValue = null,
+            expectedProperties = null,
+            userKey = "test-user",
+            trafficType = "user"
+        )
+    }
+
+    @Test
+    fun `track with value sends event to events endpoint`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user").withTrafficType("user")
+
+        recordedRequests.clear()
+
+        val details = TrackingEventDetails(value = 42.0)
+        provider.track("purchase_completed", context, details)
+
+        kotlinx.coroutines.delay(1000)
+
+        verifyEventSent(
+            recordedRequests = recordedRequests,
+            eventName = "purchase_completed",
+            expectedValue = 42.0,
+            expectedProperties = null,
+            userKey = "test-user",
+            trafficType = "user"
+        )
+    }
+
+    @Test
+    fun `track with properties sends event to events endpoint`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user").withTrafficType("user")
+
+        recordedRequests.clear()
+
+        val details = TrackingEventDetails(
+            structure = ImmutableStructure(
+                mapOf(
+                    "product_id" to Value.String("12345"),
+                    "category" to Value.String("electronics")
+                )
+            )
+        )
+        provider.track("product_viewed", context, details)
+
+        kotlinx.coroutines.delay(1000)
+
+        verifyEventSent(
+            recordedRequests = recordedRequests,
+            eventName = "product_viewed",
+            expectedValue = null,
+            expectedProperties = mapOf(
+                "product_id" to "12345",
+                "category" to "electronics"
+            ),
+            userKey = "test-user",
+            trafficType = "user"
+        )
+    }
+
+    @Test
+    fun `track with value and properties sends event to events endpoint`() = runBlocking {
+        val provider = createAndInitializeProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user").withTrafficType("user")
+
+        recordedRequests.clear()
+
+        val details = TrackingEventDetails(
+            value = 99.99,
+            structure = ImmutableStructure(
+                mapOf(
+                    "currency" to Value.String("USD"),
+                    "discount_applied" to Value.Boolean(true)
+                )
+            )
+        )
+        provider.track("order_total", context, details)
+
+        kotlinx.coroutines.delay(1000)
+
+        verifyEventSent(
+            recordedRequests = recordedRequests,
+            eventName = "order_total",
+            expectedValue = 99.99,
+            expectedProperties = mapOf(
+                "currency" to "USD",
+                "discount_applied" to true
+            ),
+            userKey = "test-user",
+            trafficType = "user"
+        )
+    }
+
     // Test Helper Methods
     /**
      * Creates and initializes a provider that's ready for evaluation tests
@@ -898,6 +1013,8 @@ class OpenFeatureSpecTest {
             .featuresRefreshRate(999999)
             .segmentsRefreshRate(999999)
             .impressionsRefreshRate(999999)
+            .eventsQueueSize(1)
+            .eventFlushInterval(1)
             .logLevel(SplitLogLevel.ERROR)
             .build()
 
@@ -912,6 +1029,9 @@ class OpenFeatureSpecTest {
     private fun setupMockServerDispatcher() {
         val dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
+                // Record all requests for verification in tests
+                recordedRequests.add(request)
+
                 return when {
                     request.path?.contains("/memberships") == true -> {
                         MockResponse()
