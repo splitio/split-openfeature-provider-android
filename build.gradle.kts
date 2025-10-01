@@ -49,7 +49,7 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
 }
 
-val providerVersion = "1.0.0-rc1"
+val providerVersion = "1.0.0-rc2"
 
 val splitPOM = Action<MavenPom> {
     name.set("Split OpenFeature Provider for Android")
