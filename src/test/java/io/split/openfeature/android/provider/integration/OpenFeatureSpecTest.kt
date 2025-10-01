@@ -301,53 +301,68 @@ class OpenFeatureSpecTest {
 
     // FLAG_NOT_FOUND error code
     @Test
-    fun `flag not found error for boolean returns default`() = runBlocking {
+    fun `flag not found error for boolean throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
         
-        val evaluation = provider.getStringEvaluation("non-existent-flag", "control", context)
-        
-        assertEquals("control", evaluation.value)
+        try {
+            provider.getStringEvaluation("non-existent-flag", "control", context)
+            fail("Should have thrown FlagNotFoundError")
+        } catch (e: OpenFeatureError.FlagNotFoundError) {
+            // Expected - provider should throw FlagNotFoundError for non-existent flags
+        }
     }
 
     @Test
-    fun `flag not found error for string returns default`() = runBlocking {
+    fun `flag not found error for string throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
         
-        val evaluation = provider.getStringEvaluation("non-existent-flag", "bye", context)
-        
-        assertEquals("bye", evaluation.value)
+        try {
+            provider.getStringEvaluation("non-existent-flag", "bye", context)
+            fail("Should have thrown FlagNotFoundError")
+        } catch (e: OpenFeatureError.FlagNotFoundError) {
+            // Expected
+        }
     }
 
     @Test
-    fun `flag not found error for integer returns default`() = runBlocking {
+    fun `flag not found error for integer throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
         
-        val evaluation = provider.getStringEvaluation("non-existent-flag", "one", context)
-        
-        assertEquals("one", evaluation.value)
+        try {
+            provider.getStringEvaluation("non-existent-flag", "one", context)
+            fail("Should have thrown FlagNotFoundError")
+        } catch (e: OpenFeatureError.FlagNotFoundError) {
+            // Expected
+        }
     }
 
     @Test
-    fun `flag not found error for float returns default`() = runBlocking {
+    fun `flag not found error for float throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
         
-        val evaluation = provider.getStringEvaluation("non-existent-flag", "point-one", context)
-        
-        assertEquals("point-one", evaluation.value)
+        try {
+            provider.getStringEvaluation("non-existent-flag", "point-one", context)
+            fail("Should have thrown FlagNotFoundError")
+        } catch (e: OpenFeatureError.FlagNotFoundError) {
+            // Expected
+        }
     }
 
     @Test
-    fun `flag not found error for object returns default`() = runBlocking {
+    fun `flag not found error for object throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
         
-        val evaluation = provider.getStringEvaluation("non-existent-flag", "empty", context)
-        
-        assertEquals("empty", evaluation.value)
+        try {
+            provider.getStringEvaluation("non-existent-flag", "empty", context)
+            fail("Should have thrown FlagNotFoundError")
+        } catch (e: OpenFeatureError.FlagNotFoundError) {
+            // Expected
+        }
     }
 
     // Type mismatch handling
@@ -502,55 +517,70 @@ class OpenFeatureSpecTest {
         assertEquals("zero", evaluation.value)
     }
 
-    // DISABLED reason code (we're not supporting reasons yet)
+    // DISABLED reason code - disabled flags throw FlagNotFoundError
     @Test
-    fun `disabled boolean flag returns default`() = runBlocking {
+    fun `disabled boolean flag throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
         
-        val evaluation = provider.getStringEvaluation("boolean-disabled-flag", "control", context)
-        
-        assertEquals("control", evaluation.value)
+        try {
+            provider.getStringEvaluation("boolean-disabled-flag", "control", context)
+            fail("Should have thrown FlagNotFoundError")
+        } catch (e: OpenFeatureError.FlagNotFoundError) {
+            // Expected - disabled flags return "control" which triggers FlagNotFoundError
+        }
     }
 
     @Test
-    fun `disabled string flag returns default`() = runBlocking {
+    fun `disabled string flag throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
         
-        val evaluation = provider.getStringEvaluation("string-disabled-flag", "bye", context)
-        
-        assertEquals("bye", evaluation.value)
+        try {
+            provider.getStringEvaluation("string-disabled-flag", "bye", context)
+            fail("Should have thrown FlagNotFoundError")
+        } catch (e: OpenFeatureError.FlagNotFoundError) {
+            // Expected
+        }
     }
 
     @Test
-    fun `disabled integer flag returns default`() = runBlocking {
+    fun `disabled integer flag throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
         
-        val evaluation = provider.getStringEvaluation("integer-disabled-flag", "one", context)
-        
-        assertEquals("one", evaluation.value)
+        try {
+            provider.getStringEvaluation("integer-disabled-flag", "one", context)
+            fail("Should have thrown FlagNotFoundError")
+        } catch (e: OpenFeatureError.FlagNotFoundError) {
+            // Expected
+        }
     }
 
     @Test
-    fun `disabled float flag returns default`() = runBlocking {
+    fun `disabled float flag throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
         
-        val evaluation = provider.getStringEvaluation("float-disabled-flag", "point-one", context)
-        
-        assertEquals("point-one", evaluation.value)
+        try {
+            provider.getStringEvaluation("float-disabled-flag", "point-one", context)
+            fail("Should have thrown FlagNotFoundError")
+        } catch (e: OpenFeatureError.FlagNotFoundError) {
+            // Expected
+        }
     }
 
     @Test
-    fun `disabled object flag returns default`() = runBlocking {
+    fun `disabled object flag throws FlagNotFoundError`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
         val context = ImmutableContext(targetingKey = "test-user")
         
-        val evaluation = provider.getStringEvaluation("object-disabled-flag", "empty", context)
-        
-        assertEquals("empty", evaluation.value)
+        try {
+            provider.getStringEvaluation("object-disabled-flag", "empty", context)
+            fail("Should have thrown FlagNotFoundError")
+        } catch (e: OpenFeatureError.FlagNotFoundError) {
+            // Expected
+        }
     }
 
     // PROVIDER_NOT_READY error when provider isn't initialized

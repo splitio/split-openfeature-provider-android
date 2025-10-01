@@ -5,6 +5,7 @@ import dev.openfeature.kotlin.sdk.EvaluationMetadata
 import dev.openfeature.kotlin.sdk.ProviderEvaluation
 import dev.openfeature.kotlin.sdk.Value
 import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError
+import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError.FlagNotFoundError
 import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError.GeneralError
 import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError.ParseError
 import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError.ProviderNotReadyError
@@ -111,13 +112,10 @@ internal class DefaultEvaluator(
             val treatment = evaluated.treatment()
             
             // Split SDK returns "control" for non-existent or disabled flags
-            // Per OpenFeature spec, we should return the default value in this case
+            // Per OpenFeature spec, we should throw FlagNotFoundError
+            // The OpenFeature client will catch this and return the default value
             if (treatment == "control") {
-                return ProviderEvaluation(
-                    value = defaultValue,
-                    variant = treatment,
-                    reason = REASON_UNKNOWN
-                )
+                throw FlagNotFoundError("Flag '$key' not found or is disabled")
             }
             
             val mapped = mapper(treatment, evaluated)
