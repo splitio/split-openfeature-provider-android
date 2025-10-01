@@ -985,7 +985,7 @@ class OpenFeatureSpecTest {
     private fun createUninitializedProvider(userKey: String): SplitProvider {
         splitFactory = createReadySplitFactory(userKey)
 
-        // Create provider but DON'T initialize it
+        // Create non initialized provider
         return createTestSplitProvider(
             splitFactory = splitFactory,
             config = SplitProvider.Config(

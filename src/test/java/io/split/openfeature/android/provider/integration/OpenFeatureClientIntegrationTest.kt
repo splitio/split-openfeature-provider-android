@@ -329,10 +329,7 @@ class OpenFeatureClientIntegrationTest {
         )
     }
 
-    // ========================================================================
-    // Provider Status Tests - Testing observe() state emissions
-    // ========================================================================
-
+    // Provider Status Tests
     @Test
     fun `client observes provider ProviderReady event after initialization`() = runBlocking {
         splitFactory = createReadySplitFactory("test-user")
@@ -359,7 +356,6 @@ class OpenFeatureClientIntegrationTest {
         val context = ImmutableContext(targetingKey = "test-user")
         provider.initialize(context)
 
-        // Now observe events - with replay=1, we should receive the ProviderReady event
         val events = mutableListOf<OpenFeatureProviderEvents>()
         val eventJob = launch {
             provider.observe().collect { event ->
@@ -408,7 +404,7 @@ class OpenFeatureClientIntegrationTest {
         // Wait for initialization to complete
         delay(200)
 
-        // Now start observing (late subscriber should still get ProviderReady due to replay=1)
+        // Now start observing (late subscriber should still get ProviderReady)
         var receivedReady = false
         val eventJob = launch {
             provider.observe().collect { event ->
@@ -423,7 +419,7 @@ class OpenFeatureClientIntegrationTest {
         eventJob.cancel()
 
         assertTrue(
-            "Late subscriber should receive ProviderReady event due to replay=1",
+            "Late subscriber should receive ProviderReady event",
             receivedReady
         )
     }

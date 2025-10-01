@@ -98,7 +98,7 @@ class SplitProvider internal constructor(
 
     /**
      * Configuration holder for the provider.
-     **/
+     */
     data class Config(
         val applicationContext: Context,
         val sdkKey: String,

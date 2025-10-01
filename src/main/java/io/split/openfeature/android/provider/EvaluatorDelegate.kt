@@ -105,8 +105,7 @@ internal class DefaultEvaluator(
             val evaluated: SplitResult = evaluateTreatment(client, key, evalContext)
             val treatment = evaluated.treatment()
             
-            // Split SDK returns "control" for non-existent or disabled flags
-            // Per OpenFeature spec, we should throw FlagNotFoundError
+            // Per OpenFeature spec, we should throw FlagNotFoundError when we get "control"
             // The OpenFeature client will catch this and return the default value
             if (treatment == "control") {
                 throw FlagNotFoundError("Flag '$key' not found or is disabled")
