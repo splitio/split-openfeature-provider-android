@@ -53,7 +53,6 @@ internal class DefaultEvaluator(
         key: String, defaultValue: Boolean, context: EvaluationContext?
     ): ProviderEvaluation<Boolean> = evaluateCommon(
         key = key,
-        defaultValue = defaultValue,
         context = context,
         mapper = booleanMapper,
         errorMessage = "Error getting boolean evaluation"
@@ -63,7 +62,6 @@ internal class DefaultEvaluator(
         key: String, defaultValue: String, context: EvaluationContext?
     ): ProviderEvaluation<String> = evaluateCommon(
         key = key,
-        defaultValue = defaultValue,
         context = context,
         mapper = stringMapper,
         errorMessage = "Error getting String evaluation"
@@ -73,7 +71,6 @@ internal class DefaultEvaluator(
         key: String, defaultValue: Int, context: EvaluationContext?
     ): ProviderEvaluation<Int> = evaluateCommon(
         key = key,
-        defaultValue = defaultValue,
         context = context,
         mapper = intMapper,
         errorMessage = "Error getting String evaluation"
@@ -83,7 +80,6 @@ internal class DefaultEvaluator(
         key: String, defaultValue: Double, context: EvaluationContext?
     ): ProviderEvaluation<Double> = evaluateCommon(
         key = key,
-        defaultValue = defaultValue,
         context = context,
         mapper = doubleMapper,
         errorMessage = "Error getting String evaluation"
@@ -93,7 +89,6 @@ internal class DefaultEvaluator(
         key: String, defaultValue: Value, context: EvaluationContext?
     ): ProviderEvaluation<Value> = evaluateCommon(
         key = key,
-        defaultValue = defaultValue,
         context = context,
         mapper = objectMapper,
         errorMessage = "Error getting object evaluation"
@@ -101,7 +96,6 @@ internal class DefaultEvaluator(
 
     private fun <T> evaluateCommon(
         key: String,
-        defaultValue: T,
         context: EvaluationContext?,
         mapper: (treatment: String, evaluated: SplitResult) -> T,
         errorMessage: String
