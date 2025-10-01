@@ -19,8 +19,9 @@ import io.split.android.client.utils.logger.Logger
 import io.split.android.client.utils.logger.SplitLogLevel
 import io.split.openfeature.android.provider.SplitProvider
 import io.split.openfeature.android.provider.createTestSplitProvider
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -326,7 +327,7 @@ class OpenFeatureClientIntegrationTest {
         withTimeout(15000) {
             var ready = false
             while (!ready) {
-                kotlinx.coroutines.delay(100)
+                delay(100)
                 ready = splitClient.isReady
             }
         }
@@ -352,12 +353,12 @@ class OpenFeatureClientIntegrationTest {
         }
 
         // Give it time to collect the replayed event
-        kotlinx.coroutines.delay(500)
+        delay(500)
 
         eventJob.cancel()
 
         // Verify we got ProviderReady event (from replay)
-        assertTrue("Expected ProviderReady event from replay, got: $events", 
+        assertTrue("Expected ProviderReady event from replay, got: $events",
                    events.contains(OpenFeatureProviderEvents.ProviderReady))
     }
 
@@ -370,7 +371,7 @@ class OpenFeatureClientIntegrationTest {
         withTimeout(15000) {
             var ready = false
             while (!ready) {
-                kotlinx.coroutines.delay(100)
+                delay(100)
                 ready = splitClient.isReady
             }
         }
@@ -388,7 +389,7 @@ class OpenFeatureClientIntegrationTest {
         provider.initialize(context)
 
         // Wait for initialization to complete
-        kotlinx.coroutines.delay(200)
+        delay(200)
 
         // Now start observing (late subscriber should still get ProviderReady due to replay=1)
         var receivedReady = false
@@ -427,7 +428,7 @@ class OpenFeatureClientIntegrationTest {
         withTimeout(15000) {
             var ready = false
             while (!ready) {
-                kotlinx.coroutines.delay(100)
+                delay(100)
                 ready = splitClient.isReady
             }
         }
@@ -441,12 +442,12 @@ class OpenFeatureClientIntegrationTest {
             )
         )
 
-        // Initialize provider then set it in OpenFeature API
+        // Set provider with context - OpenFeature SDK handles initialization
         val context = ImmutableContext(targetingKey = userKey)
-        withTimeout(5000) {
-            provider.initialize(context)
-        }
-        OpenFeatureAPI.setProvider(provider)
+        OpenFeatureAPI.setProvider(provider, initialContext = context)
+
+        // Wait for provider initialization to complete
+        delay(500)
 
         // Get OpenFeature client
         openFeatureClient = OpenFeatureAPI.getClient()

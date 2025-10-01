@@ -50,7 +50,6 @@ class SplitProvider internal constructor(
         dispatcher = Dispatchers.IO
     )
 
-
     @Throws(OpenFeatureError::class, CancellationException::class)
     override suspend fun initialize(initialContext: EvaluationContext?) =
         initializer.initialize(initialContext)
