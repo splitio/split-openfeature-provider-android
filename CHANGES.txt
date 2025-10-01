@@ -1,0 +1,2 @@
+1.0.0 (Oct 1, 2025)
+- Initial release. Using OpenFeature Kotlin SDK 0.6.2 and Split SDK 5.4.0
