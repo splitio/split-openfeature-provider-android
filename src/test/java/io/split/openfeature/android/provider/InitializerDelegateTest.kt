@@ -5,6 +5,8 @@ import dev.openfeature.kotlin.sdk.EvaluationContext
 import dev.openfeature.kotlin.sdk.ImmutableContext
 import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError.ProviderFatalError
 import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError.ProviderNotReadyError
+import io.split.openfeature.android.provider.EvaluationContextExt.getTrafficType
+import io.split.openfeature.android.provider.EvaluationContextExt.withTrafficType
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -312,6 +314,44 @@ class InitializerDelegateTest : BaseMockkTest() {
             val newCtx = ImmutableContext(targetingKey = "user-2")
             initializer.onContextSet(oldCtx, newCtx)
         }
+
+    @Test
+    fun `initialize preserves explicitly set traffic type`() = runTest(testDispatcher) {
+        val factory = mockk<SplitFactory>()
+        val client = mockk<SplitClient>()
+        val sdkManager = mockk<SdkDelegate>()
+        coEvery { sdkManager.initialize(any(), any(), any(), any()) } returns (factory to client)
+
+        val stateRef = AtomicReference(SplitProviderState())
+        val initializer = initializer(stateRef = stateRef, sdkManager = sdkManager)
+        val ctx = ImmutableContext(targetingKey = "user-1").withTrafficType("custom")
+
+        initializer.initialize(ctx)
+
+        val storedContext = stateRef.get().defaultContext
+        assert(storedContext?.getTrafficType() == "custom") {
+            "Expected traffic type 'custom' but got '${storedContext?.getTrafficType()}'"
+        }
+    }
+
+    @Test
+    fun `initialize sets default user traffic type when not provided`() = runTest(testDispatcher) {
+        val factory = mockk<SplitFactory>()
+        val client = mockk<SplitClient>()
+        val sdkManager = mockk<SdkDelegate>()
+        coEvery { sdkManager.initialize(any(), any(), any(), any()) } returns (factory to client)
+
+        val stateRef = AtomicReference(SplitProviderState())
+        val initializer = initializer(stateRef = stateRef, sdkManager = sdkManager)
+        val ctx = ImmutableContext(targetingKey = "user-1")
+
+        initializer.initialize(ctx)
+
+        val storedContext = stateRef.get().defaultContext
+        assert(storedContext?.getTrafficType() == "user") {
+            "Expected default traffic type 'user' but got '${storedContext?.getTrafficType()}'"
+        }
+    }
 
     private fun initializer(
         stateRef: AtomicReference<SplitProviderState> = AtomicReference(SplitProviderState()),

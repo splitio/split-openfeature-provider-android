@@ -541,6 +541,26 @@ class OpenFeatureClientIntegrationTest {
         )
     }
 
+    @Test
+    fun `client track works with default traffic type without explicit withTrafficType call`() = runBlocking {
+        val client = createAndInitializeClient("test-user")
+
+        recordedRequests.clear()
+
+        client.track("button_clicked")
+
+        delay(1000)
+
+        verifyEventSent(
+            recordedRequests = recordedRequests,
+            eventName = "button_clicked",
+            expectedValue = null,
+            expectedProperties = null,
+            userKey = "test-user",
+            trafficType = "user"
+        )
+    }
+
     private suspend fun createAndInitializeClient(userKey: String): Client {
         splitFactory = createReadySplitFactory(userKey)
 

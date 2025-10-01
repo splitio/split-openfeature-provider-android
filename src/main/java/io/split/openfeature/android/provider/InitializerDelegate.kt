@@ -5,6 +5,7 @@ import dev.openfeature.kotlin.sdk.EvaluationContext
 import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError
 import io.split.android.client.SplitClient
 import io.split.android.client.SplitFactory
+import io.split.openfeature.android.provider.EvaluationContextExt.getTrafficType
 import io.split.openfeature.android.provider.EvaluationContextExt.withTrafficType
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -43,8 +44,12 @@ internal class DefaultInitializerDelegate(
                 return
             }
 
-            val ctxToStore = (current.defaultContext ?: initialContext)
-                ?.withTrafficType("user")
+            val baseContext = current.defaultContext ?: initialContext
+            val ctxToStore = if (baseContext?.getTrafficType() == null) {
+                baseContext?.withTrafficType(Constants.DEFAULT_TRAFFIC_TYPE)
+            } else {
+                baseContext
+            }
             val targetingKey = requireTargetingKey(ctxToStore)
 
             val (factory, client) = initializeSdkOrThrow(
