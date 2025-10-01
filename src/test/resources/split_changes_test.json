@@ -1,0 +1,249 @@
+{
+  "ff": {
+    "splits": [
+      {
+        "changeNumber": 10,
+        "trafficTypeName": "user",
+        "name": "boolean-flag",
+        "trafficAllocation": 100,
+        "trafficAllocationSeed": 1828377380,
+        "seed": -286617921,
+        "status": "ACTIVE",
+        "killed": false,
+        "algo": 2,
+        "conditions": [
+          {
+            "conditionType": "ROLLOUT",
+            "matcherGroup": {
+              "combiner": "AND",
+              "matchers": [
+                {
+                  "keySelector": {
+                    "trafficType": "user",
+                    "attribute": null
+                  },
+                  "matcherType": "ALL_KEYS",
+                  "negate": false,
+                  "stringMatcherData": null,
+                  "unaryNumericMatcherData": null,
+                  "userDefinedSegmentMatcherData": null,
+                  "largeSegmentMatcherData": null,
+                  "whitelistMatcherData": null,
+                  "betweenMatcherData": null,
+                  "dependencyMatcherData": null
+                }
+              ]
+            },
+            "partitions": [
+              {
+                "treatment": "on",
+                "size": 100
+              },
+              {
+                "treatment": "off",
+                "size": 0
+              }
+            ],
+            "label": "default rule"
+          }
+        ],
+        "configurations": {},
+        "sets": [],
+        "defaultTreatment": "on"
+      },
+      {
+        "changeNumber": 10,
+        "trafficTypeName": "user",
+        "name": "string-flag",
+        "trafficAllocation": 100,
+        "trafficAllocationSeed": 1828377380,
+        "seed": -286617921,
+        "status": "ACTIVE",
+        "killed": false,
+        "algo": 2,
+        "conditions": [
+          {
+            "conditionType": "ROLLOUT",
+            "matcherGroup": {
+              "combiner": "AND",
+              "matchers": [
+                {
+                  "keySelector": {
+                    "trafficType": "user",
+                    "attribute": null
+                  },
+                  "matcherType": "ALL_KEYS",
+                  "negate": false,
+                  "stringMatcherData": null,
+                  "unaryNumericMatcherData": null,
+                  "userDefinedSegmentMatcherData": null,
+                  "largeSegmentMatcherData": null,
+                  "whitelistMatcherData": null,
+                  "betweenMatcherData": null,
+                  "dependencyMatcherData": null
+                }
+              ]
+            },
+            "partitions": [
+              {
+                "treatment": "greeting",
+                "size": 100
+              },
+              {
+                "treatment": "parting",
+                "size": 0
+              }
+            ],
+            "label": "default rule"
+          }
+        ],
+        "configurations": {},
+        "sets": [],
+        "defaultTreatment": "greeting"
+      },
+      {
+        "changeNumber": 10,
+        "trafficTypeName": "user",
+        "name": "integer-flag",
+        "trafficAllocation": 100,
+        "trafficAllocationSeed": 1828377380,
+        "seed": -286617921,
+        "status": "ACTIVE",
+        "killed": false,
+        "algo": 2,
+        "conditions": [
+          {
+            "conditionType": "ROLLOUT",
+            "matcherGroup": {
+              "combiner": "AND",
+              "matchers": [
+                {
+                  "keySelector": {
+                    "trafficType": "user",
+                    "attribute": null
+                  },
+                  "matcherType": "ALL_KEYS",
+                  "negate": false,
+                  "stringMatcherData": null,
+                  "unaryNumericMatcherData": null,
+                  "userDefinedSegmentMatcherData": null,
+                  "largeSegmentMatcherData": null,
+                  "whitelistMatcherData": null,
+                  "betweenMatcherData": null,
+                  "dependencyMatcherData": null
+                }
+              ]
+            },
+            "partitions": [
+              {
+                "treatment": "one",
+                "size": 0
+              },
+              {
+                "treatment": "ten",
+                "size": 100
+              }
+            ],
+            "label": "default rule"
+          }
+        ],
+        "configurations": {},
+        "sets": [],
+        "defaultTreatment": "ten"
+      },
+      {
+        "changeNumber": 10,
+        "trafficTypeName": "user",
+        "name": "boolean-targeted-zero-flag",
+        "trafficAllocation": 100,
+        "trafficAllocationSeed": 1828377380,
+        "seed": -286617921,
+        "status": "ACTIVE",
+        "killed": false,
+        "algo": 2,
+        "conditions": [
+          {
+            "conditionType": "ROLLOUT",
+            "matcherGroup": {
+              "combiner": "AND",
+              "matchers": [
+                {
+                  "keySelector": {
+                    "trafficType": "user",
+                    "attribute": "email"
+                  },
+                  "matcherType": "EQUAL_TO",
+                  "negate": false,
+                  "stringMatcherData": {
+                    "values": ["ballmer@macrosoft.com"]
+                  },
+                  "unaryNumericMatcherData": null,
+                  "userDefinedSegmentMatcherData": null,
+                  "largeSegmentMatcherData": null,
+                  "whitelistMatcherData": null,
+                  "betweenMatcherData": null,
+                  "dependencyMatcherData": null
+                }
+              ]
+            },
+            "partitions": [
+              {
+                "treatment": "zero",
+                "size": 100
+              },
+              {
+                "treatment": "non-zero",
+                "size": 0
+              }
+            ],
+            "label": "targeted condition for zero"
+          },
+          {
+            "conditionType": "ROLLOUT",
+            "matcherGroup": {
+              "combiner": "AND",
+              "matchers": [
+                {
+                  "keySelector": {
+                    "trafficType": "user",
+                    "attribute": null
+                  },
+                  "matcherType": "ALL_KEYS",
+                  "negate": false,
+                  "stringMatcherData": null,
+                  "unaryNumericMatcherData": null,
+                  "userDefinedSegmentMatcherData": null,
+                  "largeSegmentMatcherData": null,
+                  "whitelistMatcherData": null,
+                  "betweenMatcherData": null,
+                  "dependencyMatcherData": null
+                }
+              ]
+            },
+            "partitions": [
+              {
+                "treatment": "zero",
+                "size": 100
+              },
+              {
+                "treatment": "non-zero",
+                "size": 0
+              }
+            ],
+            "label": "default rule"
+          }
+        ],
+        "configurations": {},
+        "sets": [],
+        "defaultTreatment": "zero"
+      }
+    ],
+    "since": -1,
+    "till": 10
+  },
+  "rbs": {
+    "d": [],
+    "s": -1,
+    "t": 10
+  }
+}
