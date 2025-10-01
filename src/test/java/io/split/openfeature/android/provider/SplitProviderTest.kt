@@ -1,12 +1,13 @@
 package io.split.openfeature.android.provider
 
 import androidx.test.core.app.ApplicationProvider
-import dev.openfeature.kotlin.sdk.FeatureProvider
 import dev.openfeature.kotlin.sdk.EvaluationContext
+import dev.openfeature.kotlin.sdk.FeatureProvider
 import dev.openfeature.kotlin.sdk.ImmutableContext
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.verify
+import io.split.android.client.SplitFactory
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -48,6 +49,7 @@ class SplitProviderTest : BaseMockkTest() {
         coVerify(exactly = 1) { initializer.initialize(ctx) }
     }
 
+
     @Test
     fun `onContextSet delegates to initializer`() = runTest(StandardTestDispatcher()) {
         val initializer = mockk<DefaultInitializerDelegate>(relaxed = true)
@@ -67,10 +69,7 @@ class SplitProviderTest : BaseMockkTest() {
     @Test
     fun `shutdown delegates to initializer`() {
         val initializer = mockk<DefaultInitializerDelegate>(relaxed = true)
-        val provider = SplitProvider(
-            config = testConfig(),
-            initializer = initializer
-        )
+        val provider = SplitProvider(config = testConfig(), initializer = initializer)
 
         provider.shutdown()
 
@@ -80,14 +79,24 @@ class SplitProviderTest : BaseMockkTest() {
     @Test
     fun `track delegates to trackingDelegate`() {
         val trackingDelegate = mockk<DefaultTrackingDelegate>(relaxed = true)
-        val provider = SplitProvider(
-            config = testConfig(),
-            trackingDelegate = trackingDelegate
-        )
+        val provider = SplitProvider(config = testConfig(), trackingDelegate = trackingDelegate)
 
         provider.track("event", null, null)
 
         verify(exactly = 1) { trackingDelegate.track("event", null, null) }
+    }
+
+    @Test
+    fun `test helper creates provider with injected SplitFactory`() {
+        val mockFactory = mockk<SplitFactory>(relaxed = true)
+
+        val provider = createTestSplitProvider(
+            splitFactory = mockFactory,
+            config = testConfig()
+        )
+
+        assertTrue(provider is FeatureProvider)
+        assertEquals("Split", provider.metadata.name)
     }
 
     private fun getProvider(): SplitProvider = SplitProvider(config = testConfig())

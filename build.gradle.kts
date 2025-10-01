@@ -1,5 +1,3 @@
-import okhttp3.internal.platform.android.AndroidLogHandler.publish
-
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
@@ -31,13 +29,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
+    kotlinOptions { jvmTarget = "11" }
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.split.sdk)
     implementation(libs.openfeature.sdk)
@@ -49,10 +44,12 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.kotlin.test.junit)
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.work.testing)
     androidTestImplementation(libs.androidx.junit)
 }
 
-val providerVersion = "1.0.0"
+val providerVersion = "1.0.0-rc1"
 
 val splitPOM = Action<MavenPom> {
     name.set("Split OpenFeature Provider for Android")
@@ -83,7 +80,7 @@ val splitPOM = Action<MavenPom> {
 }
 
 mavenPublishing {
-    coordinates("io.split.openfeature", "split-openfeature-provider-android", providerVersion)
+    coordinates("io.split.openfeature", "split-openfeature-android", providerVersion)
     pom(splitPOM)
 
     publishToMavenCentral(false)
