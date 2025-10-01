@@ -84,7 +84,7 @@ val splitPOM = Action<MavenPom> {
 }
 
 mavenPublishing {
-    coordinates("io.split.openfeature", "split-openfeature-provider-android", providerVersion)
+    coordinates("io.split.openfeature", "split-openfeature-android", providerVersion)
     pom(splitPOM)
 
     publishToMavenCentral(false)
