@@ -73,35 +73,28 @@ class SplitProviderEndToEndTest {
     }
 
     @Test
-    fun `provider initializes with mocked Split SDK`() = runBlocking {
-        // Create SplitFactory pointing to mock server
-        splitFactory = createSplitFactory("test-user-key")
-
-        // Get client before provider initialization
-        val client = splitFactory.client(Key("test-user-key"))
-        println("Initial client.isReady: ${client.isReady}")
-
-        // Create provider with injected factory using helper
-        val provider = createTestSplitProvider(
-            splitFactory = splitFactory,
-            config = SplitProvider.Config(
-                applicationContext = ApplicationProvider.getApplicationContext(),
-                sdkKey = "test-api-key"
-            )
-        )
-
-        // Initialize provider with context
-        val context = ImmutableContext(targetingKey = "test-user-key")
+    fun `SDK can fetch splits from mock server`() = runBlocking {
+        println("=== Starting SDK fetch test ===")
+        splitFactory = createSplitFactory("test-sdk-user")
+        val client = splitFactory.client(Key("test-sdk-user"))
         
-        // Initialize with timeout
+        println("Waiting for SDK to fetch splits...")
+        var attempts = 0
         withTimeout(10000) {
-            provider.initialize(context)
+            while (!client.isReady && attempts < 100) {
+                kotlinx.coroutines.delay(100)
+                attempts++
+                if (attempts % 10 == 0) {
+                    println("Still waiting... attempt $attempts")
+                }
+            }
         }
-
-        println("After provider.initialize, client.isReady: ${client.isReady}")
         
-        // Verify SDK client is ready
-        assertTrue("Split client should be ready", client.isReady)
+        println("After waiting, client.isReady: ${client.isReady}")
+        val treatment = client.getTreatment("boolean-flag")
+        println("Treatment for boolean-flag: $treatment")
+        
+        assertTrue("SDK should be ready after fetching from mock server", client.isReady)
     }
 
     @Test
@@ -170,6 +163,24 @@ class SplitProviderEndToEndTest {
         splitFactory = createSplitFactory(userKey)
         println("Created factory for $userKey")
         
+        // Wait for the SDK to be ready BEFORE creating the provider
+        val client = splitFactory.client(Key(userKey))
+        withTimeout(15000) {
+            var ready = false
+            while (!ready) {
+                kotlinx.coroutines.delay(100)
+                ready = client.isReady
+                if (!ready) {
+                    println("Waiting for client to be ready for $userKey...")
+                }
+            }
+        }
+        println("Client is ready for $userKey")
+        
+        // Try to get a treatment directly from SDK to verify it's working
+        val treatment = client.getTreatment("boolean-flag")
+        println("Direct SDK treatment for boolean-flag: $treatment")
+        
         val provider = createTestSplitProvider(
             splitFactory = splitFactory,
             config = SplitProvider.Config(
@@ -179,25 +190,13 @@ class SplitProviderEndToEndTest {
         )
         println("Created provider for $userKey")
 
+        // Since the SDK is already ready, provider initialization should be quick
         val context = ImmutableContext(targetingKey = userKey)
         println("Initializing provider for $userKey")
-        withTimeout(15000) {
+        withTimeout(5000) {
             provider.initialize(context)
         }
         println("Provider initialized for $userKey")
-
-        // Give SDK a moment to fully process
-        kotlinx.coroutines.delay(100)
-
-        // Verify client is ready
-        val client = splitFactory.client(Key(userKey))
-        println("Client isReady for $userKey: ${client.isReady}")
-        
-        // Try to get a treatment directly from SDK to verify it's working
-        val treatment = client.getTreatment("boolean-flag")
-        println("Direct SDK treatment for boolean-flag: $treatment")
-        
-        assertTrue("Client should be ready for $userKey", client.isReady)
 
         return provider
     }
@@ -310,20 +309,9 @@ class SplitProviderEndToEndTest {
     }
 
     private fun loadSplitChanges(): String {
-        // TODO: Load from file or use inline JSON
-        return """
-        {
-          "ff": {
-            "splits": [],
-            "since": -1,
-            "till": 1506703262916
-          },
-          "rbs": {
-            "d": [],
-            "s": 1506703262916,
-            "t": 1506703262916
-          }
-        }
-        """.trimIndent()
+        // Load split changes from test resources
+        val inputStream = javaClass.classLoader?.getResourceAsStream("split_changes_test.json")
+            ?: throw IllegalStateException("Could not find split_changes_test.json")
+        return inputStream.bufferedReader().use { it.readText() }
     }
 }
