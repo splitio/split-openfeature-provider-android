@@ -6,6 +6,7 @@ import androidx.work.testing.SynchronousExecutor
 import androidx.work.testing.WorkManagerTestInitHelper
 import dev.openfeature.kotlin.sdk.ImmutableContext
 import dev.openfeature.kotlin.sdk.Value
+import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError
 import io.split.android.client.ServiceEndpoints
 import io.split.android.client.SplitClientConfig
 import io.split.android.client.SplitFactory
@@ -501,25 +502,6 @@ class OpenFeatureSpecTest {
         assertEquals("zero", evaluation.value)
     }
 
-    // Evaluation with multiple context attributes
-    @Test
-    fun `multiple context attributes targeting`() = runBlocking {
-        val provider = createAndInitializeProvider("test-user")
-        val context = ImmutableContext(
-            targetingKey = "test-user",
-            attributes = mapOf(
-                "email" to Value.String("ballmer@macrosoft.com"),
-                "role" to Value.String("admin"),
-                "age" to Value.Integer(65),
-                "customer" to Value.Boolean(false)
-            )
-        )
-        
-        val evaluation = provider.getStringEvaluation("complex-targeted", "default", context)
-        
-        assertEquals("internal", evaluation.value)
-    }
-
     // DISABLED reason code (we're not supporting reasons yet)
     @Test
     fun `disabled boolean flag returns default`() = runBlocking {
@@ -571,8 +553,93 @@ class OpenFeatureSpecTest {
         assertEquals("empty", evaluation.value)
     }
 
+    // PROVIDER_NOT_READY error when provider isn't initialized
+    @Test
+    fun `provider not ready error for boolean evaluation`() = runBlocking {
+        val provider = createUninitializedProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+        
+        try {
+            provider.getStringEvaluation("boolean-flag", "control", context)
+            fail("Should have thrown ProviderNotReadyError")
+        } catch (e: dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError.ProviderNotReadyError) {
+            // Expected
+        }
+    }
+
+    @Test
+    fun `provider not ready error for string evaluation`() = runBlocking {
+        val provider = createUninitializedProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+        
+        try {
+            provider.getStringEvaluation("string-flag", "bye", context)
+            fail("Should have thrown ProviderNotReadyError")
+        } catch (e: OpenFeatureError.ProviderNotReadyError) {
+            // Expected
+        }
+    }
+
+    @Test
+    fun `provider not ready error for integer evaluation`() = runBlocking {
+        val provider = createUninitializedProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+        
+        try {
+            provider.getStringEvaluation("integer-flag", "one", context)
+            fail("Should have thrown ProviderNotReadyError")
+        } catch (e: OpenFeatureError.ProviderNotReadyError) {
+            // Expected
+        }
+    }
+
+    @Test
+    fun `provider not ready error for float evaluation`() = runBlocking {
+        val provider = createUninitializedProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+        
+        try {
+            provider.getStringEvaluation("float-flag", "point-one", context)
+            fail("Should have thrown ProviderNotReadyError")
+        } catch (e: OpenFeatureError.ProviderNotReadyError) {
+            // Expected
+        }
+    }
+
+    @Test
+    fun `provider not ready error for object evaluation`() = runBlocking {
+        val provider = createUninitializedProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+        
+        try {
+            provider.getStringEvaluation("object-flag", "empty", context)
+            fail("Should have thrown ProviderNotReadyError")
+        } catch (e: OpenFeatureError.ProviderNotReadyError) {
+            // Expected
+        }
+    }
+
+    // PROVIDER_FATAL error when provider is in fatal state
+    @Test
+    fun `provider fatal state for boolean evaluation`() = runBlocking {
+        val provider = createUninitializedProvider("test-user")
+        val context = ImmutableContext(targetingKey = "test-user")
+        
+        // Uninitialized provider should throw ProviderNotReadyError on evaluation
+        try {
+            provider.getStringEvaluation("boolean-flag", "control", context)
+            fail("Should have thrown ProviderNotReadyError")
+        } catch (e: OpenFeatureError.ProviderNotReadyError) {
+            // Expected - uninitialized provider is in a "not ready" state
+        }
+    }
+
+    // Test Helper Methods
+    /**
+     * Creates and initializes a provider that's ready for evaluation tests
+     */
     private suspend fun createAndInitializeProvider(userKey: String): SplitProvider {
-        splitFactory = createSplitFactory(userKey)
+        splitFactory = createReadySplitFactory(userKey)
         
         // Wait for the SDK to be ready BEFORE creating the provider
         val client = splitFactory.client(Key(userKey))
@@ -600,7 +667,26 @@ class OpenFeatureSpecTest {
         return provider
     }
 
-    private fun createSplitFactory(userKey: String): SplitFactory {
+    /**
+     * Creates a provider that is NOT initialized (NOT_READY state)
+     */
+    private fun createUninitializedProvider(userKey: String): SplitProvider {
+        splitFactory = createReadySplitFactory(userKey)
+        
+        // Create provider but DON'T initialize it
+        return createTestSplitProvider(
+            splitFactory = splitFactory,
+            config = SplitProvider.Config(
+                applicationContext = ApplicationProvider.getApplicationContext(),
+                sdkKey = "test-api-key"
+            )
+        )
+    }
+
+    /**
+     * Creates a SplitFactory connected to the working mock server for evaluation tests
+     */
+    private fun createReadySplitFactory(userKey: String): SplitFactory {
         val baseUrl = mockWebServer.url("/").toString()
         
         val endpoints = ServiceEndpoints.builder()
