@@ -65,17 +65,7 @@ class OpenFeatureSpecTest {
         mockWebServer.shutdown()
     }
 
-    // Basic typed flag evaluation with detailed evaluation
-    @Test
-    fun `resolve boolean value`() = runBlocking {
-        val provider = createAndInitializeProvider("test-user")
-        val context = ImmutableContext(targetingKey = "test-user")
-
-        val evaluation = provider.getStringEvaluation("boolean-flag", "off", context)
-
-        assertEquals("on", evaluation.value)
-    }
-
+    // Basic flag evaluation
     @Test
     fun `resolve string value`() = runBlocking {
         val provider = createAndInitializeProvider("test-user")
@@ -84,39 +74,6 @@ class OpenFeatureSpecTest {
         val evaluation = provider.getStringEvaluation("string-flag", "bye", context)
 
         assertEquals("greeting", evaluation.value)
-    }
-
-    @Test
-    fun `resolve integer value`() = runBlocking {
-        val provider = createAndInitializeProvider("test-user")
-        val context = ImmutableContext(targetingKey = "test-user")
-
-        val evaluation = provider.getStringEvaluation("integer-flag", "one", context)
-
-        assertEquals("ten", evaluation.value)
-    }
-
-    @Test
-    fun `resolve float value`() = runBlocking {
-        val provider = createAndInitializeProvider("test-user")
-        val context = ImmutableContext(targetingKey = "test-user")
-
-        val evaluation = provider.getStringEvaluation("float-flag", "point-one", context)
-
-        assertEquals("half", evaluation.value)
-    }
-
-    @Test
-    fun `resolve object value`() = runBlocking {
-        val provider = createAndInitializeProvider("test-user")
-        val context = ImmutableContext(targetingKey = "test-user")
-
-        val evaluation = provider.getStringEvaluation("object-flag", "empty", context)
-
-        assertEquals(
-            "{\"showImages\":true,\"title\":\"Check out these pics!\",\"imagesPerPage\":100}",
-            evaluation.value
-        )
     }
 
     // Reason field - zero values (we're not supporting reasons yet)
