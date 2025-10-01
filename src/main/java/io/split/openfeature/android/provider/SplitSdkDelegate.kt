@@ -39,6 +39,7 @@ internal class SplitSdkDelegate(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val eventsRegistry: SplitEventsRegistry,
     private val eventsMapping: EventsMapping = DefaultEventsMapping,
+    private val injectedFactory: SplitFactory? = null,
 ) : SdkDelegate {
     override suspend fun initialize(
         appContext: Context,
@@ -46,7 +47,7 @@ internal class SplitSdkDelegate(
         targetingKey: String,
         timeoutMs: Long
     ): Pair<SplitFactory, SplitClient> {
-        val factory = withContext(dispatcher) {
+        val factory = injectedFactory ?: withContext(dispatcher) {
             SplitFactoryBuilder.build(
                 sdkKey,
                 Key(targetingKey),

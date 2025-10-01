@@ -1,6 +1,7 @@
 package io.split.openfeature.android.provider
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import dev.openfeature.kotlin.sdk.EvaluationContext
 import dev.openfeature.kotlin.sdk.FeatureProvider
 import dev.openfeature.kotlin.sdk.Hook
@@ -10,11 +11,12 @@ import dev.openfeature.kotlin.sdk.TrackingEventDetails
 import dev.openfeature.kotlin.sdk.Value
 import dev.openfeature.kotlin.sdk.events.OpenFeatureProviderEvents
 import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError
+import io.split.android.client.SplitFactory
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import java.util.concurrent.atomic.AtomicReference
-import kotlin.coroutines.cancellation.CancellationException
 
 class SplitProvider internal constructor(
     override val hooks: List<Hook<*>> = emptyList(),
@@ -48,6 +50,38 @@ class SplitProvider internal constructor(
         config = config,
         state = AtomicReference(SplitProviderState()),
         dispatcher = Dispatchers.IO
+    )
+
+    /**
+     * Constructor for testing purposes that allows injecting a SplitFactory instance.
+     * @suppress
+     */
+    @VisibleForTesting
+    constructor(
+        splitFactory: SplitFactory,
+        hooks: List<Hook<*>> = emptyList(),
+        metadata: ProviderMetadata = object : ProviderMetadata {
+            override val name = NAME
+        },
+        config: Config,
+    ) : this(
+        hooks = hooks,
+        metadata = metadata,
+        config = config,
+        state = AtomicReference(SplitProviderState()),
+        dispatcher = Dispatchers.IO,
+        eventsRegistry = SplitEventsRegistry(),
+        initializer = DefaultInitializerDelegate(
+            stateRef = AtomicReference(SplitProviderState()),
+            config = config,
+            sdkManager =
+                SplitSdkDelegate(
+                    dispatcher = Dispatchers.IO,
+                    eventsRegistry = SplitEventsRegistry(),
+                    injectedFactory = splitFactory
+                ),
+            defaultReadyTimeoutMs = DEFAULT_READY_TIMEOUT_MS
+        )
     )
 
     @Throws(OpenFeatureError::class, CancellationException::class)
@@ -98,7 +132,7 @@ class SplitProvider internal constructor(
 
     /**
      * Configuration holder for the provider.
-     */
+     **/
     data class Config(
         val applicationContext: Context,
         val sdkKey: String,
