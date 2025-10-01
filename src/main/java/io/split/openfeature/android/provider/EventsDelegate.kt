@@ -37,6 +37,9 @@ internal class SplitEventsBridge(
     private val registry: SplitEventsRegistry? = null,
 ) {
     private val _events = MutableSharedFlow<OpenFeatureProviderEvents>(
+        // replay=1 ensures late subscribers receive the most recent event (e.g., ProviderReady)
+        // even if they start observing after the client is already ready. Without this, late
+        // observers would never know the provider's current state.
         replay = 1,
         extraBufferCapacity = 64,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
@@ -44,6 +47,9 @@ internal class SplitEventsBridge(
     val events: Flow<OpenFeatureProviderEvents> = _events
 
     init {
+        // Track if ProviderReady was emitted during listener registration to avoid double emission
+        var readyEmittedDuringRegistration = false
+
         mapping.splitToProvider.forEach { (splitEvent: SplitEvent, providerEventFactory: () -> OpenFeatureProviderEvents) ->
             val task = object : SplitEventTask() {
                 override fun onPostExecution(splitClient: SplitClient?) {
@@ -51,6 +57,7 @@ internal class SplitEventsBridge(
                     _events.tryEmit(event)
                     // Mark that we've emitted ProviderReady
                     if (event == OpenFeatureProviderEvents.ProviderReady) {
+                        readyEmittedDuringRegistration = true
                         registry?.markProviderReadyEmitted()
                     }
                 }
@@ -63,8 +70,8 @@ internal class SplitEventsBridge(
                 if (isContextChange) {
                     // Context changes always emit ProviderConfigurationChanged immediately
                     _events.tryEmit(OpenFeatureProviderEvents.ProviderConfigurationChanged)
-                } else if (client.isReady) {
-                    // First client that is ready emits ProviderReady
+                } else if (!readyEmittedDuringRegistration) {
+                    // Only emit ProviderReady if it wasn't already emitted during listener registration
                     _events.tryEmit(OpenFeatureProviderEvents.ProviderReady)
                     registry?.markProviderReadyEmitted()
                 }

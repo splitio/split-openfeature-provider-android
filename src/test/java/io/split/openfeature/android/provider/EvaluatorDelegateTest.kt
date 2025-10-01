@@ -243,6 +243,18 @@ class EvaluatorDelegateTest : BaseMockkTest() {
         assertEquals(expected, eval.value)
     }
 
+    @Test
+    fun `evaluation details includes UNKNOWN reason`() {
+        val client = mockk<SplitClient>()
+        every { client.getTreatmentWithConfig("flag", any()) } returns SplitResult("on", null)
+
+        val ctx: EvaluationContext = ImmutableContext(targetingKey = "user")
+        val evaluator = evaluatorWith(client = client, defaultContext = ctx)
+
+        val eval = evaluator.getBooleanEvaluation("flag", defaultValue = false, context = ctx)
+        assertEquals("UNKNOWN", eval.reason)
+    }
+
     @Test(expected = OpenFeatureError.ParseError::class)
     fun `object evaluation throws when treatment is blank`() {
         val client = mockk<SplitClient>()

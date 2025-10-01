@@ -11,6 +11,7 @@ androidxTestCore = "1.7.0"
 coroutines = "1.8.1"
 mockk = "1.13.12"
 kotlinx-serialization = "1.6.0"
+maven-publish = "0.33.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -28,3 +29,5 @@ kotlin-test-junit = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit"
 [plugins]
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 android-library = { id = "com.android.library", version.ref = "agp" }
+mavenpublish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }
+signing = { id = "signing" }

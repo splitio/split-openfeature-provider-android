@@ -1,6 +1,7 @@
 package io.split.openfeature.android.provider
 
 import dev.openfeature.kotlin.sdk.events.OpenFeatureProviderEvents
+import dev.openfeature.kotlin.sdk.exceptions.OpenFeatureError
 import io.mockk.CapturingSlot
 import io.split.android.client.SplitClient
 import io.split.android.client.events.SplitEvent
@@ -12,6 +13,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -174,33 +177,46 @@ class DefaultEventsDelegateTest {
     }
 
     @Test
-    fun `client becomes ready between isReady check and listener registration`() = runTest {
+    fun `does not double emit ProviderReady via registry when client becomes ready during listener registration`() = runTest {
         val client = mockk<SplitClient>(relaxed = true)
         val readySlot = slot<SplitEventTask>()
+        val readyFromCacheSlot = slot<SplitEventTask>()
         val updateSlot = slot<SplitEventTask>()
         val timeoutSlot = slot<SplitEventTask>()
+        var isReady = false
 
-        // Initially not ready
-        every { client.isReady } returns false
+        every { client.isReady } answers { isReady }
 
         // Capture event listeners when they are registered
-        every { client.on(SplitEvent.SDK_READY, capture(readySlot)) } answers {
-            // Simulate client becoming ready right after listener registration
-            every { client.isReady } returns true
-        }
-        every { client.on(SplitEvent.SDK_READY_FROM_CACHE, capture(slot())) } answers { }
+        every { client.on(SplitEvent.SDK_READY_FROM_CACHE, capture(readyFromCacheSlot)) } answers { }
         every { client.on(SplitEvent.SDK_UPDATE, capture(updateSlot)) } answers { }
         every { client.on(SplitEvent.SDK_READY_TIMED_OUT, capture(timeoutSlot)) } answers { }
+        every { client.on(SplitEvent.SDK_READY, capture(readySlot)) } answers {
+            // After listener is registered, but before the init block finishes,
+            // the SDK fires SDK_READY and client becomes ready
+            isReady = true
+            readySlot.captured.onPostExecution(client)
+        }
 
-        val bridge = registry.register(client)
+        // Track emissions by instrumenting tryEmit
+        var emissionCount = 0
+        val events = mutableListOf<OpenFeatureProviderEvents>()
 
-        val job = async { withTimeout(2_000) { bridge.events.first() } }
+        val job = async {
+            withTimeout(1_000) {
+                val bridge = registry.register(client)
+                bridge.events.collect { event ->
+                    emissionCount++
+                    events.add(event)
+                }
+            }
+        }
         runCurrent()
 
-        readySlot.captured.onPostExecution(client)
+        job.cancel()
 
-        val event = job.await()
-        assertEquals(OpenFeatureProviderEvents.ProviderReady, event)
+        val readyCount = events.count { it == OpenFeatureProviderEvents.ProviderReady }
+        assertEquals("Should only emit ProviderReady once: $events", 1, readyCount)
     }
 
     private data class CapturedTasks(

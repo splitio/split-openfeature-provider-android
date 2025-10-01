@@ -18,3 +18,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
+
+rootProject.name = "Split OpenFeature Provider for Android"

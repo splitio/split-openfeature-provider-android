@@ -1,6 +1,10 @@
+import okhttp3.internal.platform.android.AndroidLogHandler.publish
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.mavenpublish)
+    alias(libs.plugins.signing)
 }
 
 android {
@@ -46,4 +50,42 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.kotlin.test.junit)
     androidTestImplementation(libs.androidx.junit)
+}
+
+val providerVersion = "1.0.0"
+
+val splitPOM = Action<MavenPom> {
+    name.set("Split OpenFeature Provider for Android")
+    packaging = "aar"
+    description.set("Official Split OpenFeature Provider for Android")
+    url.set("https://github.com/splitio/split-openfeature-provider-android")
+
+    licenses {
+        license {
+            name.set("Apache License, Version 2.0")
+            url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+        }
+    }
+
+    developers {
+        developer {
+            id.set("splitio")
+            name.set("Split Software")
+            email.set("sdks@split.io")
+        }
+    }
+
+    scm {
+        connection.set("scm:git:git://github.com/splitio/split-openfeature-provider-android.git")
+        developerConnection.set("scm:git:ssh://github.com:splitio/split-openfeature-provider-android.git")
+        url.set("https://github.com/splitio/split-openfeature-provider-android")
+    }
+}
+
+mavenPublishing {
+    coordinates("io.split.openfeature", "split-openfeature-provider-android", providerVersion)
+    pom(splitPOM)
+
+    publishToMavenCentral(false)
+    signAllPublications()
 }
