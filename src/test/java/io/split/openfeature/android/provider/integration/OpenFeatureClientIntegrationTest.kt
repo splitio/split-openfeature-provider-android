@@ -8,6 +8,7 @@ import dev.openfeature.kotlin.sdk.Client
 import dev.openfeature.kotlin.sdk.ImmutableContext
 import dev.openfeature.kotlin.sdk.OpenFeatureAPI
 import dev.openfeature.kotlin.sdk.Value
+import dev.openfeature.kotlin.sdk.events.OpenFeatureProviderEvents
 import io.split.android.client.ServiceEndpoints
 import io.split.android.client.SplitClientConfig
 import io.split.android.client.SplitFactory
@@ -18,6 +19,9 @@ import io.split.android.client.utils.logger.Logger
 import io.split.android.client.utils.logger.SplitLogLevel
 import io.split.openfeature.android.provider.SplitProvider
 import io.split.openfeature.android.provider.createTestSplitProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import okhttp3.mockwebserver.Dispatcher
@@ -310,12 +314,98 @@ class OpenFeatureClientIntegrationTest {
     }
 
     // ========================================================================
-    // Provider Status Tests
+    // Provider Status Tests - Testing observe() state emissions
     // ========================================================================
-    // Note: Provider status tests are already covered at the provider level.
-    // The SplitProvider auto-initializes when the Split SDK is ready, so
-    // testing "not ready" state at the client level is not meaningful for
-    // this implementation.
+
+    @Test
+    fun `client observes provider ProviderReady event after initialization`() = runBlocking {
+        splitFactory = createReadySplitFactory("test-user")
+
+        // Wait for Split SDK to be ready
+        val splitClient = splitFactory.client(Key("test-user"))
+        withTimeout(15000) {
+            var ready = false
+            while (!ready) {
+                kotlinx.coroutines.delay(100)
+                ready = splitClient.isReady
+            }
+        }
+
+        // Create and initialize provider
+        val provider = createTestSplitProvider(
+            splitFactory = splitFactory,
+            config = SplitProvider.Config(
+                applicationContext = ApplicationProvider.getApplicationContext(),
+                sdkKey = "test-api-key"
+            )
+        )
+
+        val context = ImmutableContext(targetingKey = "test-user")
+        provider.initialize(context)
+
+        // Now observe events - with replay=1, we should receive the ProviderReady event
+        val events = mutableListOf<OpenFeatureProviderEvents>()
+        val eventJob = launch {
+            provider.observe().collect { event ->
+                events.add(event)
+            }
+        }
+
+        // Give it time to collect the replayed event
+        kotlinx.coroutines.delay(500)
+
+        eventJob.cancel()
+
+        // Verify we got ProviderReady event (from replay)
+        assertTrue("Expected ProviderReady event from replay, got: $events", 
+                   events.contains(OpenFeatureProviderEvents.ProviderReady))
+    }
+
+    @Test
+    fun `client receives ProviderReady event when observing after initialization`() = runBlocking {
+        splitFactory = createReadySplitFactory("test-user")
+
+        // Wait for Split SDK
+        val splitClient = splitFactory.client(Key("test-user"))
+        withTimeout(15000) {
+            var ready = false
+            while (!ready) {
+                kotlinx.coroutines.delay(100)
+                ready = splitClient.isReady
+            }
+        }
+
+        val provider = createTestSplitProvider(
+            splitFactory = splitFactory,
+            config = SplitProvider.Config(
+                applicationContext = ApplicationProvider.getApplicationContext(),
+                sdkKey = "test-api-key"
+            )
+        )
+
+        // Initialize provider first
+        val context = ImmutableContext(targetingKey = "test-user")
+        provider.initialize(context)
+
+        // Wait for initialization to complete
+        kotlinx.coroutines.delay(200)
+
+        // Now start observing (late subscriber should still get ProviderReady due to replay=1)
+        var receivedReady = false
+        val eventJob = launch {
+            provider.observe().collect { event ->
+                if (event == OpenFeatureProviderEvents.ProviderReady) {
+                    receivedReady = true
+                }
+            }
+        }
+
+        // Wait for event emission
+        kotlinx.coroutines.delay(500)
+        eventJob.cancel()
+
+        assertTrue("Late subscriber should receive ProviderReady event due to replay=1", receivedReady)
+    }
 
     // Metadata Tests
     @Test
@@ -351,14 +441,11 @@ class OpenFeatureClientIntegrationTest {
             )
         )
 
-        // Set provider in OpenFeature API
-        // Initialize provider BEFORE setting it in OpenFeature API
+        // Initialize provider then set it in OpenFeature API
         val context = ImmutableContext(targetingKey = userKey)
         withTimeout(5000) {
             provider.initialize(context)
         }
-
-        // Now set the initialized provider
         OpenFeatureAPI.setProvider(provider)
 
         // Get OpenFeature client
