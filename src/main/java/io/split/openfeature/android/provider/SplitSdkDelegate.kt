@@ -12,7 +12,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 
 /**
  * Abstracts the initialization of the Split SDK.
@@ -26,13 +25,13 @@ internal interface SdkDelegate {
         appContext: Context,
         sdkKey: String,
         targetingKey: String,
-        timeoutMs: Long
+        timeoutMs: Long?
     ): Pair<SplitFactory, SplitClient>
 
     /**
      * Retrieve a SplitClient for the given key from a SplitFactory and await readiness.
      */
-    suspend fun getReadyClient(factory: SplitFactory, targetingKey: String, timeoutMs: Long): SplitClient
+    suspend fun getReadyClient(factory: SplitFactory, targetingKey: String, timeoutMs: Long?): SplitClient
 }
 
 internal class SplitSdkDelegate(
@@ -45,13 +44,17 @@ internal class SplitSdkDelegate(
         appContext: Context,
         sdkKey: String,
         targetingKey: String,
-        timeoutMs: Long
+        timeoutMs: Long?
     ): Pair<SplitFactory, SplitClient> {
         val factory = injectedFactory ?: withContext(dispatcher) {
+            val configBuilder = SplitClientConfig.builder()
+            if (timeoutMs != null) {
+                configBuilder.ready(timeoutMs.toInt())
+            }
             SplitFactoryBuilder.build(
                 sdkKey,
                 Key(targetingKey),
-                SplitClientConfig.builder().build(),
+                configBuilder.build(),
                 appContext
             )
         }
@@ -63,7 +66,7 @@ internal class SplitSdkDelegate(
     override suspend fun getReadyClient(
         factory: SplitFactory,
         targetingKey: String,
-        timeoutMs: Long
+        timeoutMs: Long?
     ): SplitClient {
         val client: SplitClient = factory.client(Key(targetingKey))
         val ready = CompletableDeferred<Unit>()
@@ -87,7 +90,7 @@ internal class SplitSdkDelegate(
             }
         }
 
-        withTimeout(timeoutMs) { ready.await() }
+        ready.await()
 
         // Register for updates (SDK_UPDATE, SDK_READY_TIMED_OUT, etc.)
         eventsRegistry.register(client)

@@ -4,7 +4,7 @@ import dev.openfeature.kotlin.sdk.EvaluationContext
 import dev.openfeature.kotlin.sdk.ImmutableContext
 import dev.openfeature.kotlin.sdk.Value
 
-internal object EvaluationContextExt {
+object EvaluationContextExt {
     internal fun EvaluationContext.getTrafficType(): String? {
         return getValue("trafficType")?.asString()
     }

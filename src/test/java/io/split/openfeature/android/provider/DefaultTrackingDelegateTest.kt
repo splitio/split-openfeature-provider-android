@@ -82,15 +82,15 @@ class DefaultTrackingDelegateTest {
     }
 
     @Test
-    fun `throws when trafficType is missing`() {
+    fun `uses default user traffic type when trafficType is missing`() {
         val client = mockk<SplitClient>(relaxed = true)
         val ctx = ImmutableContext(targetingKey = "user-123")
         val state = state(context = ctx, client = client)
         val delegate = DefaultTrackingDelegate(state)
 
-        assertFailsWith<InvalidContextError> {
-            delegate.track("event", ctx, null)
-        }
+        delegate.track("event", ctx, null)
+
+        verify(exactly = 1) { client.track("user", "event", null as Map<String, Any?>?) }
     }
 
     @Test
@@ -114,5 +114,56 @@ class DefaultTrackingDelegateTest {
         assertFailsWith<ProviderNotReadyError> {
             delegate.track("event", ctx, null)
         }
+    }
+
+    @Test
+    fun `uses default context traffic type when passed context has none`() {
+        val client = mockk<SplitClient>(relaxed = true)
+        val defaultCtx = ImmutableContext("user-123").withTrafficType("user")
+        val passedCtx = ImmutableContext("user-123")
+        val state = state(context = defaultCtx, client = client)
+        val delegate = DefaultTrackingDelegate(state)
+
+        delegate.track("event", passedCtx, null)
+
+        verify(exactly = 1) { client.track("user", "event", null as Map<String, Any?>?) }
+    }
+
+    @Test
+    fun `uses custom traffic type when explicitly set in passed context`() {
+        val client = mockk<SplitClient>(relaxed = true)
+        val defaultCtx = ImmutableContext("user-123").withTrafficType("user")
+        val passedCtx = ImmutableContext("user-123").withTrafficType("account")
+        val state = state(context = defaultCtx, client = client)
+        val delegate = DefaultTrackingDelegate(state)
+
+        delegate.track("event", passedCtx, null)
+
+        verify(exactly = 1) { client.track("account", "event", null as Map<String, Any?>?) }
+    }
+
+    @Test
+    fun `uses custom traffic type when set in default context`() {
+        val client = mockk<SplitClient>(relaxed = true)
+        val defaultCtx = ImmutableContext("user-123").withTrafficType("organization")
+        val state = state(context = defaultCtx, client = client)
+        val delegate = DefaultTrackingDelegate(state)
+
+        delegate.track("event", null, null)
+
+        verify(exactly = 1) { client.track("organization", "event", null as Map<String, Any?>?) }
+    }
+
+    @Test
+    fun `uses default user traffic type when neither passed nor default context has traffic type`() {
+        val client = mockk<SplitClient>(relaxed = true)
+        val defaultCtx = ImmutableContext("user-123") // no traffic type
+        val passedCtx = ImmutableContext("user-123") // no traffic type
+        val state = state(context = defaultCtx, client = client)
+        val delegate = DefaultTrackingDelegate(state)
+
+        delegate.track("event", passedCtx, null)
+
+        verify(exactly = 1) { client.track(Constants.DEFAULT_TRAFFIC_TYPE, "event", null as Map<String, Any?>?) }
     }
 }

@@ -51,22 +51,22 @@ class SplitSdkDelegateTest : BaseMockkTest() {
         assertTrue(client.subscribed(SplitEvent.SDK_READY_FROM_CACHE))
     }
 
-    @Test(expected = TimeoutCancellationException::class)
-    fun `getReadyClient times out when READY not received`() =
-        runTest(testDispatcher) {
-            val factory = mockk<SplitFactory>()
-            val client = TestHelperClient()
-            every { factory.client(any() as Key) } returns client
+    @Test
+    fun `getReadyClient completes on SDK_READY_TIMED_OUT`() = runTest(testDispatcher) {
+        val factory = mockk<SplitFactory>()
+        val client = TestHelperClient()
+        every { factory.client(any() as Key) } returns client
 
-            val deferred = async { initializer.getReadyClient(factory, "key", timeoutMs = 5_000) }
-            // This allows the SDK event listeners to be attached first
-            runCurrent()
-            // Do not fire any READY event; advance virtual time past timeout
-            advanceTimeBy(5_000)
-            runCurrent()
-            // Await the result to surface TimeoutCancellationException
-            deferred.await()
-        }
+        val deferred = async { initializer.getReadyClient(factory, "key", timeoutMs = 5_000) }
+        // This allows the SDK event listeners to be attached first
+        runCurrent()
+        // Simulate SDK READY TIMED OUT
+        client.fire(SplitEvent.SDK_READY_TIMED_OUT)
+
+        val result = deferred.await()
+        assertSame(client, result)
+        assertTrue(client.subscribed(SplitEvent.SDK_READY_TIMED_OUT))
+    }
 
     @Test(expected = CancellationException::class)
     fun `initialize propagates cancellation`() = runTest(testDispatcher) {
@@ -123,35 +123,6 @@ class SplitSdkDelegateTest : BaseMockkTest() {
             val (builtFactory, builtClient) = deferred.await()
             assertSame(factory, builtFactory)
             assertSame(client, builtClient)
-        }
-
-    @Test(expected = TimeoutCancellationException::class)
-    fun `initialize times out when READY not received`() =
-        runTest(testDispatcher) {
-            mockkStatic(SplitFactoryBuilder::class)
-            val factory = mockk<SplitFactory>()
-            every { SplitFactoryBuilder.build(any(), any(), any(), any()) } returns factory
-
-            val client = TestHelperClient()
-            every { factory.client(any() as Key) } returns client
-
-            val appContext: Context = ApplicationProvider.getApplicationContext()
-
-            val deferred = async {
-                initializer.initialize(
-                    appContext = appContext,
-                    sdkKey = "sdk-key",
-                    targetingKey = "target",
-                    timeoutMs = 5_000
-                )
-            }
-
-            // This allows the SDK event listeners to be attached first
-            runCurrent()
-            // Do not fire any READY event; advance virtual time past timeout
-            advanceTimeBy(5_000)
-            runCurrent()
-            deferred.await()
         }
 
     @Test

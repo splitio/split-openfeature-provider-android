@@ -51,9 +51,11 @@ internal class DefaultTrackingDelegate(
             throw TargetingKeyMissingError("Targeting key missing in evaluation context")
         }
 
-        if (evalContext.getTrafficType().isNullOrEmpty()) {
-            throw InvalidContextError("Missing trafficType, required to track. Set it in context with EvaluationContext.withTrafficType")
-        }
+        // If the evaluation context doesn't have a traffic type, try to get it from the default context
+        // If neither has it, use the default traffic type
+        val trafficType = evalContext.getTrafficType()
+            ?: currentState.defaultContext?.getTrafficType()
+            ?: Constants.DEFAULT_TRAFFIC_TYPE
 
         val client = currentState.splitClient ?: throw ProviderNotReadyError()
 
@@ -62,6 +64,6 @@ internal class DefaultTrackingDelegate(
             throw ProviderNotReadyError("Requested targetingKey ('$requestedKey') differs from active key ('${currentState.activeKey}'). Call setContext first to switch.")
         }
 
-        return Pair(evalContext.getTrafficType(), client)
+        return Pair(trafficType, client)
     }
 }

@@ -28,8 +28,7 @@ class SplitProvider internal constructor(
     private val initializer: InitializerDelegate = DefaultInitializerDelegate(
         stateRef = state,
         config = config,
-        sdkManager = SplitSdkDelegate(dispatcher, eventsRegistry),
-        defaultReadyTimeoutMs = DEFAULT_READY_TIMEOUT_MS
+        sdkManager = SplitSdkDelegate(dispatcher, eventsRegistry)
     ),
     private val evaluatorDelegate: EvaluatorDelegate = DefaultEvaluator(state),
     private val trackingDelegate: TrackingDelegate = DefaultTrackingDelegate(state),
@@ -102,10 +101,10 @@ class SplitProvider internal constructor(
     data class Config(
         val applicationContext: Context,
         val sdkKey: String,
+        val timeoutMs: Long? = null,
     )
 
     private companion object {
         const val NAME = "Split"
-        const val DEFAULT_READY_TIMEOUT_MS = 10_000L
     }
 }
