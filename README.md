@@ -5,7 +5,7 @@ This Provider is designed to enable the use of OpenFeature in Android, with Spli
 
 ## Compatibility
 The Split OpenFeature Provider supports:
-- Android API Level 21 (Android 5.0 Lollipop) and higher
+- Android API Level 21 (Android 5.0 Lollipop) and higher.
 
 ## Getting started
 Below is a simple example that describes the instantiation of the Split Provider. Please see the [OpenFeature Documentation](https://docs.openfeature.dev/docs/reference/concepts/evaluation-api) for details on how to use the OpenFeature SDK.
@@ -31,6 +31,7 @@ dependencies {
 ### Usage
 
 The Split OpenFeature Provider requires an Android `Context` and your Split SDK key. You must also provide an evaluation context with a targeting key when initializing the provider.
+
 
 ```kotlin
 import dev.openfeature.kotlin.sdk.OpenFeatureAPI
