@@ -32,6 +32,7 @@ dependencies {
 
 The Split OpenFeature Provider requires an Android `Context` and your Split SDK key. You must also provide an evaluation context with a targeting key when initializing the provider.
 
+
 ```kotlin
 import dev.openfeature.kotlin.sdk.OpenFeatureAPI
 import dev.openfeature.kotlin.sdk.ImmutableContext
