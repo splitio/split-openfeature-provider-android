@@ -1,0 +1,14 @@
+inputSet:
+  name: Harness Code input set
+  identifier: Harness_Code_input_set
+  orgIdentifier: PROD
+  projectIdentifier: Harness_Split
+  pipeline:
+    identifier: splitopenfeatureproviderandroid
+    properties:
+      ci:
+        codebase:
+          build:
+            type: PR
+            spec:
+              number: <+trigger.prNumber>
