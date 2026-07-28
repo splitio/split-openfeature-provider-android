@@ -1,0 +1,14 @@
+inputSet:
+  name: cron-main
+  identifier: cron_main
+  orgIdentifier: PROD
+  projectIdentifier: Harness_Split
+  pipeline:
+    identifier: split_openfeature_android_update_license
+    properties:
+      ci:
+        codebase:
+          build:
+            type: branch
+            spec:
+              branch: main

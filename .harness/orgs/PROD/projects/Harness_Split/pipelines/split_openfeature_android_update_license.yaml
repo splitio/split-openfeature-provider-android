@@ -1,0 +1,85 @@
+pipeline:
+  name: split-openfeature-android-update-license
+  identifier: split_openfeature_android_update_license
+  orgIdentifier: PROD
+  projectIdentifier: Harness_Split
+  tags: {}
+  properties:
+    ci:
+      codebase:
+        connectorRef: fmegithubrunnersci
+        repoName: split-openfeature-provider-android
+        build: <+input>
+  stages:
+    - stage:
+        name: Update License Year
+        identifier: update_license_year
+        type: CI
+        spec:
+          cloneCodebase: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Set Year Variables
+                  identifier: set_year_variables
+                  spec:
+                    shell: Bash
+                    command: |-
+                      CURRENT=$(date +%Y)
+                      PREVIOUS=$((CURRENT - 1))
+                      echo "CURRENT=$CURRENT" >> $HARNESS_ENV
+                      echo "PREVIOUS=$PREVIOUS" >> $HARNESS_ENV
+              - step:
+                  type: Run
+                  name: Update LICENSE
+                  identifier: update_license
+                  spec:
+                    shell: Bash
+                    command: |-
+                      sed -i "s/$PREVIOUS/$CURRENT/g" LICENSE.txt
+                      echo "License updated: $PREVIOUS -> $CURRENT"
+                      cat LICENSE.txt
+              - step:
+                  type: Run
+                  name: Commit and Create Pull Request
+                  identifier: commit_and_create_pr
+                  spec:
+                    shell: Bash
+                    command: |-
+                      # Install gh CLI (not available on Harness Cloud runner by default)
+                      curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+                      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+                      apt-get update && apt-get install -y gh
+
+                      git config user.name 'harness-ci[bot]'
+                      git config user.email 'harness-ci[bot]@users.noreply.github.com'
+
+                      # Stage and commit only if there are changes
+                      if git diff --quiet LICENSE.txt; then
+                        echo "No changes to LICENSE.txt — already up to date"
+                        exit 0
+                      fi
+
+                      BRANCH="update-license-$CURRENT"
+
+                      git checkout -b "$BRANCH"
+                      git add LICENSE.txt
+                      git commit -m "Updated License Year"
+
+                      git push "https://x-access-token:$GITHUB_TOKEN@github.com/splitio/split-openfeature-provider-android.git" "$BRANCH"
+
+                      gh pr create \
+                        --title "Update License Year" \
+                        --body "Automated update of license year from $PREVIOUS to $CURRENT." \
+                        --base main \
+                        --head "$BRANCH"
+                    envVariables:
+                      GITHUB_TOKEN: <+secrets.getValue("github-splitio-token")>
+                      GH_TOKEN: <+secrets.getValue("github-splitio-token")>
