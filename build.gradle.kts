@@ -1,8 +1,16 @@
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
+import org.gradle.testing.jacoco.tasks.JacocoReport
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.mavenpublish)
     alias(libs.plugins.signing)
+    id("jacoco")
+}
+
+jacoco {
+    toolVersion = "0.8.12"
 }
 
 android {
@@ -47,6 +55,64 @@ dependencies {
     testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.work.testing)
     androidTestImplementation(libs.androidx.junit)
+}
+
+tasks.withType<Test>().configureEach {
+    extensions.configure(JacocoTaskExtension::class) {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+        isEnabled = true
+    }
+}
+
+// Unit-test JaCoCo XML only. hcli accepts jacoco.xml under build/reports/jacoco/test.
+tasks.register<JacocoReport>("jacocoTestReport") {
+    dependsOn("testDebugUnitTest")
+    group = "verification"
+    description = "Generates a JaCoCo XML report for debug unit tests."
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+        xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco/test/jacoco.xml"))
+    }
+
+    val coverageExclusions = listOf(
+        "**/R.class",
+        "**/R\$*.class",
+        "**/BuildConfig.*",
+        "**/Manifest*.*",
+        "**/*Test*.*",
+        "android/**/*.*"
+    )
+    val classDirs = listOf(
+        "tmp/kotlin-classes/debug",
+        "intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes",
+        "intermediates/javac/debug/compileDebugJavaWithJavac/classes"
+    )
+
+    classDirectories.setFrom(
+        files(classDirs.map { dir ->
+            fileTree(layout.buildDirectory.dir(dir)) { exclude(coverageExclusions) }
+        })
+    )
+    sourceDirectories.setFrom(files("src/main/java", "src/main/kotlin"))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include(
+                "jacoco/testDebugUnitTest.exec",
+                "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec",
+                "outputs/**/*.exec"
+            )
+        }
+    )
+}
+
+afterEvaluate {
+    tasks.named("testDebugUnitTest") {
+        finalizedBy("jacocoTestReport")
+    }
 }
 
 val providerVersion = "1.0.0"
